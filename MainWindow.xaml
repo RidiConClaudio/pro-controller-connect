@@ -21,7 +21,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Barra del titolo -->
+        <!-- Title bar -->
         <Grid Margin="16,0,6,0">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Border Width="22" Height="22" CornerRadius="6" Background="{StaticResource AccentGradient}">
@@ -32,38 +32,38 @@
                            Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button Style="{StaticResource TitleButton}" Content="&#xE921;" ToolTip="Riduci a icona"
+                <Button Style="{StaticResource TitleButton}" Content="&#xE921;" ToolTip="{local:L tip_minimize}"
                         WindowChrome.IsHitTestVisibleInChrome="True" Click="Minimize_Click"/>
-                <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" ToolTip="Nascondi nell'area di notifica"
+                <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" ToolTip="{local:L tip_close}"
                         WindowChrome.IsHitTestVisibleInChrome="True" Click="Close_Click" Margin="2,0,0,0"/>
             </StackPanel>
         </Grid>
 
         <StackPanel Grid.Row="1" Margin="24,0,24,22">
 
-            <!-- Indicatore di stato -->
-            <Grid Width="176" Height="176" HorizontalAlignment="Center">
-                <Ellipse x:Name="Glow" Width="160" Height="160" Opacity="0.14" Fill="#8B93A3"/>
-                <Ellipse x:Name="PulseRing" Width="128" Height="128" StrokeThickness="2"
+            <!-- Status indicator -->
+            <Grid Width="152" Height="152" HorizontalAlignment="Center">
+                <Ellipse x:Name="Glow" Width="140" Height="140" Opacity="0.14" Fill="#8B93A3"/>
+                <Ellipse x:Name="PulseRing" Width="112" Height="112" StrokeThickness="2"
                          Stroke="#8B93A3" Opacity="0" RenderTransformOrigin="0.5,0.5">
                     <Ellipse.RenderTransform>
                         <ScaleTransform x:Name="PulseScale"/>
                     </Ellipse.RenderTransform>
                 </Ellipse>
-                <Ellipse Width="128" Height="128" Fill="{StaticResource CardBrush}"
+                <Ellipse Width="112" Height="112" Fill="{StaticResource CardBrush}"
                          Stroke="{StaticResource LineBrush}" StrokeThickness="1"/>
                 <TextBlock x:Name="StatusGlyph" Text="&#xE7FC;" FontFamily="{StaticResource IconFont}"
-                           FontSize="54" Foreground="#8B93A3"
+                           FontSize="48" Foreground="#8B93A3"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Border x:Name="Badge" Width="32" Height="32" CornerRadius="16" BorderThickness="3"
                         BorderBrush="{StaticResource BgBrush}" Background="#8B93A3"
-                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,30,30">
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,24">
                     <TextBlock x:Name="BadgeGlyph" FontFamily="{StaticResource IconFont}" FontSize="12"
                                Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
             </Grid>
 
-            <TextBlock x:Name="StatusTitle" Text="Avvio…" FontSize="22" FontWeight="SemiBold"
+            <TextBlock x:Name="StatusTitle" Text="{local:L starting_title}" FontSize="22" FontWeight="SemiBold"
                        HorizontalAlignment="Center" TextAlignment="Center"/>
             <TextBlock x:Name="StatusDetail" FontSize="13" Foreground="{StaticResource SubTextBrush}"
                        TextWrapping="Wrap" TextAlignment="Center" Margin="10,6,10,0" MinHeight="36"
@@ -73,33 +73,33 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="MainButtonGlyph" Text="&#xE702;" FontFamily="{StaticResource IconFont}"
                                FontSize="16" VerticalAlignment="Center" Margin="0,1,10,0"/>
-                    <TextBlock x:Name="MainButtonText" Text="Connetti controller" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="MainButtonText" Text="{local:L btn_connect}" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
 
-            <!-- Schede -->
+            <!-- Tabs -->
             <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="4" CornerRadius="12">
                 <UniformGrid Columns="2">
                     <RadioButton x:Name="TabController" Style="{StaticResource Segment}" GroupName="Tabs"
                                  IsChecked="True" Checked="Tab_Checked">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE7FC;" FontFamily="{StaticResource IconFont}" FontSize="14" Margin="0,1,8,0"/>
-                            <TextBlock Text="Controller"/>
+                            <TextBlock Text="{local:L tab_controller}"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="TabSettings" Style="{StaticResource Segment}" GroupName="Tabs" Checked="Tab_Checked">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="14" Margin="0,1,8,0"/>
-                            <TextBlock Text="Impostazioni"/>
+                            <TextBlock Text="{local:L tab_settings}"/>
                         </StackPanel>
                     </RadioButton>
                 </UniformGrid>
             </Border>
 
             <Grid Margin="0,12,0,0">
-            <!-- Scheda Controller -->
+            <!-- Controller tab -->
             <Grid x:Name="ControllerPage">
-                <!-- Procedura (quando non connesso) -->
+                <!-- Procedure (when not connected) -->
                 <Border x:Name="StepperCard" Style="{StaticResource Card}" Padding="8,16,8,16" VerticalAlignment="Top">
                     <StackPanel>
                         <Grid>
@@ -108,29 +108,28 @@
                             <UniformGrid x:Name="Stepper" Columns="4"/>
                         </Grid>
                         <Rectangle Height="1" Fill="{StaticResource LineBrush}" Margin="8,16,8,14"/>
-                        <TextBlock Margin="12,0" Style="{StaticResource SettingDesc}" LineHeight="19">
-                            <Run Foreground="{StaticResource TextBrush}" FontWeight="SemiBold">Dov'è il tasto SYNC?</Run><LineBreak/>
-                            È il piccolo tasto rotondo sul bordo superiore, tra L e R, accanto alla porta USB-C.
-                            Tienilo premuto un secondo: i 4 LED iniziano a scorrere.<LineBreak/><LineBreak/>
-                            <Run Foreground="{StaticResource TextBrush}" FontWeight="SemiBold">Dopo la connessione</Run><LineBreak/>
-                            Qui comparirà il test in tempo reale: ogni tasto premuto si illumina, così sai che il controller funziona davvero.
-                        </TextBlock>
+                        <StackPanel Margin="12,0">
+                            <TextBlock Style="{StaticResource SettingTitle}" FontSize="13" FontWeight="SemiBold" Text="{local:L sync_where_title}"/>
+                            <TextBlock Style="{StaticResource SettingDesc}" LineHeight="19" Text="{local:L sync_where_text}"/>
+                            <TextBlock Style="{StaticResource SettingTitle}" FontSize="13" FontWeight="SemiBold" Margin="0,12,0,0" Text="{local:L after_title}"/>
+                            <TextBlock Style="{StaticResource SettingDesc}" LineHeight="19" Text="{local:L after_text}"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Test in tempo reale (quando connesso) -->
+                <!-- Live test (when connected) -->
                 <Border x:Name="TesterCard" Style="{StaticResource Card}" Padding="14,12,14,12" Visibility="Collapsed" VerticalAlignment="Top">
                     <StackPanel>
                         <Grid>
                             <StackPanel>
-                                <TextBlock Text="Test in tempo reale" FontSize="14" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="DeviceInfo" Style="{StaticResource SettingDesc}" Text="Ricerca della periferica di gioco…"/>
+                                <TextBlock Text="{local:L live_test}" FontSize="14" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="DeviceInfo" Style="{StaticResource SettingDesc}" Text="{local:L device_searching}"/>
                             </StackPanel>
                             <Border x:Name="InputBadge" HorizontalAlignment="Right" VerticalAlignment="Top"
                                     CornerRadius="11" Padding="10,4" Background="#2A2F3B">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse x:Name="InputDot" Width="7" Height="7" Fill="#8B93A3" Margin="0,1,7,0"/>
-                                    <TextBlock x:Name="InputBadgeText" Text="Premi un tasto" FontSize="11.5"/>
+                                    <TextBlock x:Name="InputBadgeText" Text="{local:L badge_press}" FontSize="11.5"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -145,42 +144,49 @@
                 </Border>
             </Grid>
 
-            <!-- Scheda Impostazioni -->
+            <!-- Settings tab -->
             <StackPanel x:Name="SettingsPage" Visibility="Hidden">
             <Border Style="{StaticResource Card}" Padding="16,2">
                 <StackPanel>
                     <CheckBox x:Name="AutoModeSwitch" Style="{StaticResource Switch}" Click="Setting_Click">
-                        <StackPanel Margin="0,12">
-                            <TextBlock Style="{StaticResource SettingTitle}" Text="Modalità automatica"/>
+                        <StackPanel Margin="0,9">
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="{local:L set_auto_title}"/>
                             <TextBlock Style="{StaticResource SettingDesc}"
-                                       Text="Ripara da sola l'abbinamento bloccato: ti basta premere SYNC sul controller."/>
+                                       Text="{local:L set_auto_desc}"/>
                         </StackPanel>
                     </CheckBox>
                     <Rectangle Height="1" Fill="{StaticResource LineBrush}"/>
                     <CheckBox x:Name="StartupSwitch" Style="{StaticResource Switch}" Click="Setting_Click">
-                        <StackPanel Margin="0,12">
-                            <TextBlock Style="{StaticResource SettingTitle}" Text="Avvia con Windows"/>
-                            <TextBlock Style="{StaticResource SettingDesc}" Text="Pronta subito dopo l'accensione del PC."/>
+                        <StackPanel Margin="0,9">
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="{local:L set_startup_title}"/>
+                            <TextBlock Style="{StaticResource SettingDesc}" Text="{local:L set_startup_desc}"/>
                         </StackPanel>
                     </CheckBox>
                     <Rectangle Height="1" Fill="{StaticResource LineBrush}"/>
                     <CheckBox x:Name="MinimizedSwitch" Style="{StaticResource Switch}" Click="Setting_Click">
-                        <StackPanel Margin="0,12">
-                            <TextBlock Style="{StaticResource SettingTitle}" Text="Avvio silenzioso"/>
-                            <TextBlock Style="{StaticResource SettingDesc}" Text="All'avvio con Windows resta nell'area di notifica."/>
+                        <StackPanel Margin="0,9">
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="{local:L set_silent_title}"/>
+                            <TextBlock Style="{StaticResource SettingDesc}" Text="{local:L set_silent_desc}"/>
                         </StackPanel>
                     </CheckBox>
                     <Rectangle Height="1" Fill="{StaticResource LineBrush}"/>
                     <CheckBox x:Name="NotifySwitch" Style="{StaticResource Switch}" Click="Setting_Click">
-                        <StackPanel Margin="0,12">
-                            <TextBlock Style="{StaticResource SettingTitle}" Text="Notifiche"/>
-                            <TextBlock Style="{StaticResource SettingDesc}" Text="Avvisa quando il controller è connesso."/>
+                        <StackPanel Margin="0,9">
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="{local:L set_notify_title}"/>
+                            <TextBlock Style="{StaticResource SettingDesc}" Text="{local:L set_notify_desc}"/>
                         </StackPanel>
                     </CheckBox>
+                    <Rectangle Height="1" Fill="{StaticResource LineBrush}"/>
+                    <Grid Margin="0,10" ToolTip="{local:L set_lang_desc}">
+                        <TextBlock Style="{StaticResource SettingTitle}" Text="{local:L set_lang_title}" VerticalAlignment="Center"/>
+                        <Border Background="#11141A" CornerRadius="10" Padding="3" HorizontalAlignment="Right" Width="276">
+                            <UniformGrid x:Name="LangPanel" Rows="1"/>
+                        </Border>
+                    </Grid>
                 </StackPanel>
             </Border>
 
-            <!-- Strumenti -->
+            <!-- Tools -->
             <Grid Margin="0,12,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/>
@@ -189,22 +195,22 @@
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
-                <Button Style="{StaticResource ToolButton}" Click="RestartBt_Click" ToolTip="Spegne e riaccende la radio Bluetooth">
+                <Button Style="{StaticResource ToolButton}" Click="RestartBt_Click" ToolTip="{local:L tool_restart_tip}">
                     <StackPanel>
                         <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" FontSize="16" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Riavvia Bluetooth" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{local:L tool_restart}" Margin="0,6,0,0" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Grid.Column="2" Style="{StaticResource ToolButton}" Click="BtSettings_Click" ToolTip="Apre le impostazioni Bluetooth di Windows">
+                <Button Grid.Column="2" Style="{StaticResource ToolButton}" Click="BtSettings_Click" ToolTip="{local:L tool_btsettings_tip}">
                     <StackPanel>
                         <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="16" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Impostazioni BT" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{local:L tool_btsettings}" Margin="0,6,0,0" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Grid.Column="4" Style="{StaticResource ToolButton}" Click="Log_Click" ToolTip="Mostra il registro attività">
+                <Button Grid.Column="4" Style="{StaticResource ToolButton}" Click="Log_Click" ToolTip="{local:L tool_log_tip}">
                     <StackPanel>
                         <TextBlock Text="&#xE81C;" FontFamily="{StaticResource IconFont}" FontSize="16" HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="LogButtonText" Text="Attività" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="LogButtonText" Text="{local:L tool_log}" Margin="0,6,0,0" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Grid>

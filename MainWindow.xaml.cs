@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -22,7 +23,7 @@ public partial class MainWindow : Window
     static readonly Color Red = Color.FromRgb(0xFF, 0x5A, 0x5F);
     static readonly Color Gray = Color.FromRgb(0x8B, 0x93, 0xA3);
 
-    static readonly string[] StepLabels = { "Rimuovi", "Premi SYNC", "Abbina", "Connesso" };
+    static string[] StepLabels => new[] { Loc.T("step_remove"), Loc.T("step_sync"), Loc.T("step_pair"), Loc.T("step_connected") };
 
     readonly ControllerService _svc;
     readonly AppSettings _settings;
@@ -47,20 +48,21 @@ public partial class MainWindow : Window
         StartupSwitch.IsChecked = settings.StartWithWindows;
         MinimizedSwitch.IsChecked = settings.StartMinimized;
         NotifySwitch.IsChecked = settings.Notifications;
+        BuildLanguagePicker();
 
-        // Icona nell'area di notifica
-        _trayConnect = new WinForms.ToolStripMenuItem("Connetti controller", null, (_, _) => MainButton_Click(this, new RoutedEventArgs()));
-        _trayAuto = new WinForms.ToolStripMenuItem("Modalità automatica", null, (_, _) =>
+        // Notification area icon
+        _trayConnect = new WinForms.ToolStripMenuItem(Loc.T("btn_connect"), null, (_, _) => MainButton_Click(this, new RoutedEventArgs()));
+        _trayAuto = new WinForms.ToolStripMenuItem(Loc.T("set_auto_title"), null, (_, _) =>
         {
             AutoModeSwitch.IsChecked = !_settings.AutoMode;
             Setting_Click(AutoModeSwitch, new RoutedEventArgs());
         }) { Checked = settings.AutoMode };
         var menu = new WinForms.ContextMenuStrip { Renderer = new DarkMenuRenderer(), ShowImageMargin = false, ShowCheckMargin = true };
-        menu.Items.Add(new WinForms.ToolStripMenuItem("Apri", null, (_, _) => ShowFromTray()) { Font = new Drawing.Font("Segoe UI", 9f, Drawing.FontStyle.Bold) });
+        menu.Items.Add(new WinForms.ToolStripMenuItem(Loc.T("tray_open"), null, (_, _) => ShowFromTray()) { Font = new Drawing.Font("Segoe UI", 9f, Drawing.FontStyle.Bold) });
         menu.Items.Add(_trayConnect);
         menu.Items.Add(_trayAuto);
         menu.Items.Add(new WinForms.ToolStripSeparator());
-        menu.Items.Add(new WinForms.ToolStripMenuItem("Esci", null, (_, _) => ExitApp()));
+        menu.Items.Add(new WinForms.ToolStripMenuItem(Loc.T("tray_exit"), null, (_, _) => ExitApp()));
         foreach (WinForms.ToolStripItem it in menu.Items) { it.ForeColor = Drawing.Color.FromArgb(236, 238, 242); it.Padding = new WinForms.Padding(6, 4, 6, 4); }
 
         _tray = new WinForms.NotifyIcon
@@ -85,7 +87,7 @@ public partial class MainWindow : Window
         ApplyStatus(_svc.Current);
     }
 
-    // ───────────────────────────── Test in tempo reale ─────────────────────────────
+    // ───────────────────────────── Live test ─────────────────────────────
 
     readonly InputMonitor _input = new();
     bool _connected;
@@ -108,8 +110,8 @@ public partial class MainWindow : Window
             _lastInput = DateTime.MinValue;
         }
         DeviceInfo.Text = _input.Controller != null
-            ? "Rilevato come periferica di gioco · " + _input.Describe()
-            : "Connesso via Bluetooth, in attesa della periferica di gioco…";
+            ? Loc.T("device_detected", _input.Describe())
+            : Loc.T("device_waiting");
         UpdateBadge();
     }
 
@@ -117,10 +119,10 @@ public partial class MainWindow : Window
     {
         Color c;
         string text;
-        if (_input.Controller == null) { c = Amber; text = "Non rilevato"; }
-        else if (_inputVerified && (DateTime.UtcNow - _lastInput).TotalSeconds < 0.25) { c = Accent; text = "Input in arrivo"; }
-        else if (_inputVerified) { c = Green; text = "Funziona"; }
-        else { c = Gray; text = "Premi un tasto"; }
+        if (_input.Controller == null) { c = Amber; text = Loc.T("badge_notdetected"); }
+        else if (_inputVerified && (DateTime.UtcNow - _lastInput).TotalSeconds < 0.25) { c = Accent; text = Loc.T("badge_receiving"); }
+        else if (_inputVerified) { c = Green; text = Loc.T("badge_works"); }
+        else { c = Gray; text = Loc.T("badge_press"); }
         InputDot.Fill = new SolidColorBrush(c);
         InputBadge.Background = new SolidColorBrush(Color.FromArgb(0x30, c.R, c.G, c.B));
         InputBadgeText.Text = text;
@@ -131,7 +133,7 @@ public partial class MainWindow : Window
         if (!IsVisible || TesterCard.Visibility != Visibility.Visible || TabController.IsChecked != true) return;
         if (!_input.Read()) return;
 #if DEBUG
-        if (Environment.GetEnvironmentVariable("PCC_DEMO") == "1") // anteprima grafica senza premere tasti
+        if (Environment.GetEnvironmentVariable("PCC_DEMO") == "1") // visual preview without pressing buttons
         {
             int t = (int)(DateTime.Now.TimeOfDay.TotalSeconds * 2);
             for (int i = 0; i < _input.Buttons.Length; i++) _input.Buttons[i] = i == t % 14 || i == 1 || i == 6;
@@ -151,10 +153,10 @@ public partial class MainWindow : Window
 
         if (changed)
         {
-            if (_prevButtons.Length > 0 || _prevAxes.Length > 0) // non contare la prima lettura
+            if (_prevButtons.Length > 0 || _prevAxes.Length > 0) // don't count the first reading
             {
                 _lastInput = DateTime.UtcNow;
-                if (!_inputVerified) { _inputVerified = true; AppendLog("Input del controller ricevuto: funziona."); }
+                if (!_inputVerified) { _inputVerified = true; AppendLog(Loc.T("log_input_ok")); }
             }
             _prevButtons = (bool[])buttons.Clone();
             _prevAxes = (double[])axes.Clone();
@@ -169,7 +171,7 @@ public partial class MainWindow : Window
         if (_inputVerified)
         {
             var ago = (DateTime.UtcNow - _lastInput).TotalSeconds;
-            LastInputText.Text = ago < 1.5 ? "ultimo input: adesso" : $"ultimo input: {FormatAgo(ago)} fa";
+            LastInputText.Text = ago < 1.5 ? Loc.T("last_input_now") : Loc.T("last_input_ago", FormatAgo(ago));
         }
         else LastInputText.Text = "";
         UpdateBadge();
@@ -184,6 +186,41 @@ public partial class MainWindow : Window
 
     static string FormatAgo(double s) => s < 60 ? $"{(int)s} s" : s < 3600 ? $"{(int)(s / 60)} min" : $"{(int)(s / 3600)} h";
 
+    void BuildLanguagePicker()
+    {
+        foreach (var (code, name) in Loc.Languages)
+        {
+            var rb = new RadioButton
+            {
+                Style = (Style)FindResource("Segment"),
+                GroupName = "Lang",
+                Content = name,
+                FontSize = 12,
+                IsChecked = string.Equals(_settings.Language, code, StringComparison.OrdinalIgnoreCase),
+                ToolTip = code == "auto" ? Loc.T("set_lang_desc") : null,
+            };
+            rb.Checked += (_, _) =>
+            {
+                if (string.Equals(_settings.Language, code, StringComparison.OrdinalIgnoreCase)) return;
+                _settings.Language = code;
+                _settings.Save();
+                RestartApp();
+            };
+            LangPanel.Children.Add(rb);
+        }
+    }
+
+    void RestartApp()
+    {
+        ((App)Application.Current).ReleaseSingleInstance();
+        var exe = Environment.ProcessPath!;
+        var psi = new ProcessStartInfo(exe) { UseShellExecute = false };
+        if (Path.GetFileNameWithoutExtension(exe).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+            psi.ArgumentList.Add(System.Reflection.Assembly.GetEntryAssembly()!.Location);
+        try { Process.Start(psi); } catch { }
+        ExitApp();
+    }
+
     void Tab_Checked(object sender, RoutedEventArgs e)
     {
         if (ControllerPage == null || SettingsPage == null) return;
@@ -192,7 +229,7 @@ public partial class MainWindow : Window
         SettingsPage.Visibility = ctrl ? Visibility.Hidden : Visibility.Visible;
     }
 
-    // ───────────────────────────── Stato → UI ─────────────────────────────
+    // ───────────────────────────── Status → UI ─────────────────────────────
 
     void ApplyStatus(ServiceStatus st)
     {
@@ -221,24 +258,24 @@ public partial class MainWindow : Window
         StatusTitle.Text = st.Title;
         StatusDetail.Text = st.Detail;
 
-        // Pulsante principale
+        // Main button
         if (st.Busy)
         {
             MainButton.Style = (Style)FindResource("SecondaryButton");
             MainButtonGlyph.Text = "";
-            MainButtonText.Text = st.AutoFlow ? "Interrompi ricerca" : "Annulla";
+            MainButtonText.Text = Loc.T(st.AutoFlow ? "btn_stop_search" : "btn_cancel");
         }
         else if (st.State == LinkState.Connected)
         {
             MainButton.Style = (Style)FindResource("SecondaryButton");
             MainButtonGlyph.Text = "";
-            MainButtonText.Text = "Riabbina da zero";
+            MainButtonText.Text = Loc.T("btn_repair");
         }
         else
         {
             MainButton.Style = (Style)FindResource("PrimaryButton");
             MainButtonGlyph.Text = "";
-            MainButtonText.Text = "Connetti controller";
+            MainButtonText.Text = Loc.T("btn_connect");
         }
         MainButton.IsEnabled = st.State is not (LinkState.BluetoothOff or LinkState.NoAdapter) || st.Busy;
 
@@ -246,11 +283,11 @@ public partial class MainWindow : Window
         bool connected = st.State == LinkState.Connected;
         if (connected != _connected) { _connected = connected; UpdateTester(); }
 
-        // Area di notifica
+        // Notification area
         _tray.Icon = GetTrayIcon(color);
         var tip = "Pro Controller Connect · " + st.Title;
         _tray.Text = tip.Length > 63 ? tip[..63] : tip;
-        _trayConnect.Text = st.Busy ? "Annulla" : "Connetti controller";
+        _trayConnect.Text = Loc.T(st.Busy ? "btn_cancel" : "btn_connect");
     }
 
     void BuildStepper()
@@ -349,7 +386,7 @@ public partial class MainWindow : Window
         LogBox.ScrollToEnd();
     }
 
-    // ───────────────────────────── Eventi UI ─────────────────────────────
+    // ───────────────────────────── UI events ─────────────────────────────
 
     void MainButton_Click(object sender, RoutedEventArgs e)
     {
@@ -381,7 +418,7 @@ public partial class MainWindow : Window
     {
         bool show = LogPanel.Visibility != Visibility.Visible;
         LogPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        LogButtonText.Text = show ? "Nascondi" : "Attività";
+        LogButtonText.Text = Loc.T(show ? "tool_log_hide" : "tool_log");
         if (show) LogBox.ScrollToEnd();
     }
 
@@ -397,8 +434,7 @@ public partial class MainWindow : Window
             Hide();
             if (!_settings.HideTipShown)
             {
-                _tray.ShowBalloonTip(4000, "Pro Controller Connect",
-                    "L'app continua a lavorare qui. Clic destro sull'icona per uscire.", WinForms.ToolTipIcon.Info);
+                _tray.ShowBalloonTip(4000, "Pro Controller Connect", Loc.T("hide_tip"), WinForms.ToolTipIcon.Info);
                 _settings.HideTipShown = true;
                 _settings.Save();
             }
@@ -425,7 +461,7 @@ public partial class MainWindow : Window
         Application.Current.Shutdown();
     }
 
-    // ───────────────────────────── Finestra Windows 11 ─────────────────────────────
+    // ───────────────────────────── Windows 11 window ─────────────────────────────
 
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -438,9 +474,9 @@ public partial class MainWindow : Window
         base.OnSourceInitialized(e);
         var hwnd = new WindowInteropHelper(this).Handle;
         int dark = 1, round = 2, border = unchecked((int)0xFFFFFFFE); // DWMWA_COLOR_NONE
-        DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int));   // modalità scura
-        DwmSetWindowAttribute(hwnd, 33, ref round, sizeof(int));  // angoli arrotondati
-        DwmSetWindowAttribute(hwnd, 34, ref border, sizeof(int)); // nessun bordo colorato
+        DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int));   // dark mode
+        DwmSetWindowAttribute(hwnd, 33, ref round, sizeof(int));  // rounded corners
+        DwmSetWindowAttribute(hwnd, 34, ref border, sizeof(int)); // no colored border
     }
 
     Drawing.Icon GetTrayIcon(Color c)
@@ -468,7 +504,7 @@ public partial class MainWindow : Window
     }
 }
 
-/// <summary>Menu contestuale scuro per l'icona nell'area di notifica.</summary>
+/// <summary>Dark context menu for the notification area icon.</summary>
 sealed class DarkMenuRenderer : WinForms.ToolStripProfessionalRenderer
 {
     public DarkMenuRenderer() : base(new DarkColors()) { RoundedEdges = false; }

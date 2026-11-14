@@ -1,79 +1,93 @@
 # Pro Controller Connect
 
-App per Windows che riconnette automaticamente il Pro Controller al Bluetooth del PC,
-senza dover rimuovere a mano il dispositivo dalle impostazioni ogni volta.
+**English** · [Italiano](README.it.md)
+
+A Windows app that automatically reconnects the Pro Controller to your PC's Bluetooth,
+so you no longer have to remove the device from Windows settings every time.
 
 <p align="center">
-  <img src="docs/screenshot.png" width="340" alt="Finestra principale">
-  <img src="docs/test-input.png" width="420" alt="Test dei tasti in tempo reale">
+  <img src="docs/screenshot.png" width="380" alt="Main window with live button test">
+  <img src="docs/settings.png" width="380" alt="Settings">
 </p>
 
-## Il problema
+## The problem
 
-Dopo un periodo di inattività o un riavvio del PC, Windows mantiene un abbinamento
-"bloccato" con il controller: il dispositivo risulta abbinato ma non si connette più, e
-finché è in lista Windows non lo vede nemmeno quando premi SYNC. Di solito bisogna
-rimuoverlo dalle impostazioni Bluetooth, riavviare la ricerca e premere di nuovo SYNC.
+After a while without use, or after restarting the PC, Windows keeps a "stuck" pairing
+with the controller: the device is listed as paired but never connects, and while it is
+in the list Windows doesn't even see it when you press SYNC. The usual fix is to remove
+it from the Bluetooth settings, search again and press SYNC once more.
 
-## Cosa fa
+## What it does
 
-1. **Rimuove** il vecchio abbinamento
-2. **Cerca** il controller in modalità SYNC
-3. **Abbina** di nuovo, senza PIN né conferme
-4. **Verifica** la connessione, anche con un **test dei tasti in tempo reale**
+1. **Removes** the old pairing
+2. **Searches** for the controller in SYNC mode
+3. **Pairs** it again, with no PIN or confirmation
+4. **Verifies** the connection, including a **live button test**
 
-Altre funzioni:
+Also:
 
-- **Modalità automatica**: se il controller resta abbinato ma scollegato per 15 secondi,
-  l'app rimuove da sola l'abbinamento e resta in ascolto. Quando vuoi giocare ti basta premere SYNC.
-- **Test in tempo reale**: un controller disegnato in cui ogni tasto premuto si illumina, con
-  i valori degli stick e l'ora dell'ultimo input.
-- **Avvio con Windows** e avvio silenzioso nell'area di notifica.
-- **Riavvia Bluetooth**: spegne e riaccende la radio, utile se l'adattatore si blocca.
-- Notifiche e registro delle attività.
+- **Automatic mode**: if the controller stays paired but disconnected for 15 seconds, the app
+  removes the pairing by itself and keeps listening. When you want to play, just press SYNC.
+- **Live test**: a drawn controller where every button you press lights up, with mapping
+  chips, stick values and time of the last input.
+- **6 languages**: English, Italiano, Español, Français, Deutsch, Português. "Auto" follows
+  the Windows language.
+- **Start with Windows**, silent start in the notification area, notifications.
+- **Restart Bluetooth**: turns the radio off and on, handy if the adapter gets stuck.
+- Activity log.
 
-## Installazione
+## Download
 
-Scarica `ProControllerConnect.exe` dalla pagina [Releases](../../releases), oppure compilalo
-(vedi sotto). Serve Windows 10 (2004) o Windows 11 e il
+Get `ProControllerConnect.exe` from [Releases](../../releases), or build it yourself (see below).
+
+Requirements: Windows 10 (version 2004) or Windows 11 and the
 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
 
-## Uso
+The executable isn't digitally signed, so Windows SmartScreen may warn you on first launch
+(More info › Run anyway).
 
-- **Connetti controller**: avvia la procedura. Poi tieni premuto per un secondo il tasto SYNC
-  (il piccolo tasto rotondo sul bordo superiore, accanto alla porta USB-C) finché i LED scorrono.
-- Chiudere la finestra la nasconde soltanto. Per uscire: clic destro sull'icona nell'area di notifica › **Esci**.
-- Il test dei tasti funziona quando la finestra è in primo piano (limite di Windows).
+## Usage
 
-Impostazioni e log sono in `%APPDATA%\ProControllerConnect\` (`settings.json`, `log.txt`).
-In `settings.json` puoi cambiare:
+- **Connect controller** starts the procedure. Then hold the SYNC button for a second (the small
+  round button on the top edge, next to the USB-C port) until the lights start moving.
+- Closing the window only hides it. To quit: right-click the notification area icon › **Exit**.
+- The live test works while the window is in the foreground (a Windows limitation).
 
-| Chiave | Default | Significato |
+Settings and log live in `%APPDATA%\ProControllerConnect\` (`settings.json`, `log.txt`).
+In `settings.json` you can change:
+
+| Key | Default | Meaning |
 | --- | --- | --- |
-| `NameFilter` | `Pro Controller` | Nomi Bluetooth da gestire, separati da `;` (es. `Pro Controller;Joy-Con`) |
-| `GraceSeconds` | `15` | Attesa prima della riparazione automatica |
+| `Language` | `auto` | `auto`, `en`, `it`, `es`, `fr`, `de`, `pt` |
+| `NameFilter` | `Pro Controller` | Bluetooth names to manage, separated by `;` (e.g. `Pro Controller;Joy-Con`) |
+| `GraceSeconds` | `15` | Wait before automatic repair |
 
-## Compilazione
+## Building
 
-Serve il [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+Requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
 ```
 
-Per un eseguibile che non richiede .NET installato usa `--self-contained true` (file più grande).
-L'icona si rigenera con `tools/make-icon.ps1`.
+Use `--self-contained true` for an executable that doesn't need .NET installed (larger file).
+The icon is generated by `tools/make-icon.ps1`.
 
-## Come funziona
+## Translations
 
-- Bluetooth: API WinRT `Windows.Devices.Enumeration` (ricerca, abbinamento personalizzato
-  "Just Works", rimozione) e `Windows.Devices.Radios` per il riavvio della radio.
+All texts are in [`Loc.cs`](Loc.cs). To add a language, copy the English table, translate it,
+and add the code to `Languages`. Pull requests are welcome.
+
+## How it works
+
+- Bluetooth: WinRT `Windows.Devices.Enumeration` (discovery, custom "Just Works" pairing,
+  unpairing) and `Windows.Devices.Radios` to restart the radio.
 - Input: `Windows.Gaming.Input.RawGameController`.
-- Interfaccia: WPF (.NET 8), tema scuro, icona nell'area di notifica.
+- UI: WPF (.NET 8), dark theme, notification area icon.
 
-Progetto non affiliato né approvato da Nintendo. "Pro Controller" è citato solo per indicare
-il dispositivo compatibile.
+Not affiliated with or endorsed by Nintendo. "Pro Controller" is mentioned only to identify
+the compatible device.
 
-## Licenza
+## License
 
 [MIT](LICENSE)

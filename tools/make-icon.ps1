@@ -1,4 +1,4 @@
-# Genera app.ico (icone PNG 16-256 px) con un gradiente e il glifo del controller.
+# Generates app.ico (PNG icons 16-256 px) with a gradient and the controller glyph.
 param([string]$Out = (Join-Path $PSScriptRoot "..\app.ico"))
 Add-Type -AssemblyName System.Drawing
 

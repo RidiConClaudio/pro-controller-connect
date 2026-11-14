@@ -8,17 +8,20 @@ namespace ProControllerConnect;
 
 public sealed class AppSettings
 {
-    /// <summary>Ripara e riabbina automaticamente il controller.</summary>
+    /// <summary>Automatically repairs and re-pairs the controller.</summary>
     public bool AutoMode { get; set; } = true;
     public bool StartWithWindows { get; set; } = false;
     public bool StartMinimized { get; set; } = true;
     public bool Notifications { get; set; } = true;
 
-    /// <summary>Nomi dei dispositivi da gestire, separati da ';'.</summary>
+    /// <summary>Device names to manage, separated by ';'.</summary>
     public string NameFilter { get; set; } = "Pro Controller";
 
-    /// <summary>Secondi di attesa prima di rimuovere un abbinamento "bloccato".</summary>
+    /// <summary>Seconds to wait before removing a "stuck" pairing.</summary>
     public int GraceSeconds { get; set; } = 15;
+
+    /// <summary>"auto" (Windows language) or a code such as "en", "it".</summary>
+    public string Language { get; set; } = "auto";
 
     public bool HideTipShown { get; set; }
 
@@ -41,7 +44,7 @@ public sealed class AppSettings
             if (File.Exists(FilePath))
                 return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
         }
-        catch { /* file corrotto: si riparte dai default */ }
+        catch { /* corrupted file: fall back to defaults */ }
         return new AppSettings();
     }
 

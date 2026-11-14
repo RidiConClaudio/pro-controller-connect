@@ -4,14 +4,14 @@ using Windows.Gaming.Input;
 
 namespace ProControllerConnect;
 
-/// <summary>Legge in tempo reale l'input del controller tramite Windows.Gaming.Input.</summary>
+/// <summary>Reads controller input in real time through Windows.Gaming.Input.</summary>
 public sealed class InputMonitor
 {
     const ushort NintendoVid = 0x057E;
 
     public RawGameController? Controller { get; private set; }
 
-    /// <summary>Scatta (da un thread qualsiasi) quando il controller compare o scompare.</summary>
+    /// <summary>Raised (from any thread) when the controller appears or disappears.</summary>
     public event Action? ControllerChanged;
 
     public bool[] Buttons { get; private set; } = Array.Empty<bool>();
@@ -40,7 +40,7 @@ public sealed class InputMonitor
         ControllerChanged?.Invoke();
     }
 
-    /// <summary>Aggiorna Buttons/Switches/Axes. Restituisce false se non c'è nessun controller.</summary>
+    /// <summary>Updates Buttons/Switches/Axes. Returns false when no controller is present.</summary>
     public bool Read()
     {
         var c = Controller;
@@ -65,9 +65,9 @@ public sealed class InputMonitor
         {
             var report = c.TryGetBatteryReport();
             if (report?.RemainingCapacityInMilliwattHours is int rem && report.FullChargeCapacityInMilliwattHours is int full && full > 0)
-                battery = $" · batteria {rem * 100 / full}%";
+                battery = " · " + Loc.T("battery", rem * 100 / full);
         }
         catch { }
-        return $"ID {c.HardwareVendorId:X4}:{c.HardwareProductId:X4} · {(c.IsWireless ? "wireless" : "cablato")}{battery}";
+        return $"ID {c.HardwareVendorId:X4}:{c.HardwareProductId:X4} · {Loc.T(c.IsWireless ? "wireless" : "wired")}{battery}";
     }
 }

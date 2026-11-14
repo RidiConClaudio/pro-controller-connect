@@ -16,7 +16,7 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        // Una sola istanza: se è già aperta, la porta in primo piano.
+        // Single instance: if already running, bring it to the front.
         _mutex = new Mutex(true, MutexName, out bool created);
         if (!created)
         {
@@ -35,7 +35,8 @@ public partial class App : Application
         base.OnStartup(e);
 
         var settings = AppSettings.Load();
-        settings.ApplyStartup(); // aggiorna il percorso nel registro se l'exe è stato spostato
+        Loc.Init(settings.Language);
+        settings.ApplyStartup(); // refresh the registry path in case the exe was moved
         var service = new ControllerService(settings);
         _window = new MainWindow(service, settings);
 
@@ -43,6 +44,14 @@ public partial class App : Application
         if (!minimized) _window.Show();
 
         service.Start();
+    }
+
+    /// <summary>Lets a freshly started copy run (used to restart after a language change).</summary>
+    public void ReleaseSingleInstance()
+    {
+        try { _mutex?.ReleaseMutex(); } catch { }
+        _mutex?.Dispose();
+        _mutex = null;
     }
 
     protected override void OnExit(ExitEventArgs e)

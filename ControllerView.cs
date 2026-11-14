@@ -10,15 +10,15 @@ using Windows.Gaming.Input;
 namespace ProControllerConnect;
 
 /// <summary>
-/// Controller disegnato in vettoriale con mappatura dei tasti in tempo reale,
-/// più una riga di "chip" con il nome di ogni tasto.
+/// Vector drawing of the controller with live button mapping,
+/// plus a row of "chips" naming each button.
 /// </summary>
 public sealed class ControllerView : StackPanel
 {
-    // Indici dei tasti nel report HID del Pro Controller
+    // Button indices in the Pro Controller HID report
     const int B = 0, A = 1, Y = 2, X = 3, L = 4, R = 5, ZL = 6, ZR = 7,
               Minus = 8, Plus = 9, LS = 10, RS = 11, Home = 12, Capture = 13;
-    const int Up = 100, Down = 101, Left = 102, Right = 103; // croce direzionale (dallo switch)
+    const int Up = 100, Down = 101, Left = 102, Right = 103; // D-pad (from the hat switch)
 
     static readonly Color AccentColor = Color.FromRgb(0x5B, 0x8C, 0xFF);
     static readonly Brush BodyStroke = Frozen(new SolidColorBrush(Color.FromRgb(0x34, 0x3B, 0x4A)));
@@ -46,13 +46,13 @@ public sealed class ControllerView : StackPanel
     {
         Children.Add(new Viewbox { Child = _c, Stretch = Stretch.Uniform, Height = 190 });
 
-        // ── Dorsali: ZL/ZR dietro, L/R davanti, inclinati come sul controller
+        // ── Shoulders: ZL/ZR behind, L/R in front, angled like the real controller
         AddShoulder(ZL, 74, 8, 74, 22, -11, "ZL");
         AddShoulder(ZR, 272, 8, 74, 22, 11, "ZR");
         AddShoulder(L, 56, 30, 98, 20, -11, "L");
         AddShoulder(R, 266, 30, 98, 20, 11, "R");
 
-        // ── Corpo con impugnature
+        // ── Body with grips
         var body = new Path
         {
             Data = Geometry.Parse(
@@ -65,7 +65,7 @@ public sealed class ControllerView : StackPanel
             StrokeThickness = 1.5,
         };
         _c.Children.Add(body);
-        // riflesso superiore
+        // top highlight
         _c.Children.Add(new Path
         {
             Data = Geometry.Parse("M 132,58 L 288,58 C 326,58 352,66 368,86"),
@@ -73,7 +73,7 @@ public sealed class ControllerView : StackPanel
             StrokeThickness = 1.2,
         });
 
-        // ── LED giocatore (il primo acceso: controller collegato)
+        // ── Player LEDs (first one lit: controller connected)
         for (int i = 0; i < 4; i++)
         {
             var led = new Ellipse
@@ -90,7 +90,7 @@ public sealed class ControllerView : StackPanel
         (_leftKnob, _leftVector) = AddStick(LS, LeftStick);
         (_rightKnob, _rightVector) = AddStick(RS, RightStick);
 
-        // ── Croce direzionale
+        // ── D-pad
         _c.Children.Add(Circle(DPad, 30, Well, null));
         AddArm(Up, "M 0,-6 L -7,-13 L -7,-25 Q -7,-27 -5,-27 L 5,-27 Q 7,-27 7,-25 L 7,-13 Z", "▲", 0, -20);
         AddArm(Down, "M 0,6 L -7,13 L -7,25 Q -7,27 -5,27 L 5,27 Q 7,27 7,25 L 7,13 Z", "▼", 0, 20);
@@ -104,7 +104,7 @@ public sealed class ControllerView : StackPanel
         AddRound(B, new Point(Face.X, Face.Y + 22), 12, "B", 11);
         AddRound(Y, new Point(Face.X - 22, Face.Y), 12, "Y", 11);
 
-        // ── Tasti centrali
+        // ── Center buttons
         AddRound(Minus, new Point(184, 82), 8, "−", 10);
         AddRound(Plus, new Point(236, 82), 8, "+", 10);
         var cap = new Rectangle { Width = 15, Height = 15, RadiusX = 3, RadiusY = 3 };
@@ -115,12 +115,12 @@ public sealed class ControllerView : StackPanel
         _c.Children.Add(capDot);
         AddRound(Home, new Point(228, 115), 10, "⌂", 11);
 
-        // ── Chip di mappatura
+        // ── Mapping chips
         var chips = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
         foreach (var (id, name) in new (int, string)[]
         {
             (A, "A"), (B, "B"), (X, "X"), (Y, "Y"), (L, "L"), (R, "R"), (ZL, "ZL"), (ZR, "ZR"),
-            (Minus, "−"), (Plus, "+"), (LS, "L3"), (RS, "R3"), (Home, "Home"), (Capture, "Cattura"),
+            (Minus, "−"), (Plus, "+"), (LS, "L3"), (RS, "R3"), (Home, "Home"), (Capture, Loc.T("chip_capture")),
             (Up, "↑"), (Down, "↓"), (Left, "←"), (Right, "→"),
         })
         {
@@ -136,7 +136,7 @@ public sealed class ControllerView : StackPanel
         Children.Add(chips);
     }
 
-    // ───────────── aggiornamento ─────────────
+    // ───────────── update ─────────────
 
     public void Update(bool[] buttons, GameControllerSwitchPosition[] switches, double[] axes)
     {
@@ -188,7 +188,7 @@ public sealed class ControllerView : StackPanel
         vector.Opacity = Math.Min(1, Math.Sqrt(x * x + y * y) * 1.5);
     }
 
-    // ───────────── costruzione ─────────────
+    // ───────────── construction ─────────────
 
     (Ellipse knob, Line vector) AddStick(int id, Point c)
     {
@@ -205,7 +205,7 @@ public sealed class ControllerView : StackPanel
         AddPart(id, knob, null);
         var cap = new Ellipse { Width = 22, Height = 22, Stroke = new SolidColorBrush(Color.FromArgb(0x50, 0x00, 0x00, 0x00)), StrokeThickness = 1, IsHitTestVisible = false };
         Place(cap, c.X - 11, c.Y - 11);
-        _caps[knob] = cap; // il cappuccio segue la manopola
+        _caps[knob] = cap; // the cap follows the knob
         _c.Children.Add(cap);
         return (knob, vector);
     }

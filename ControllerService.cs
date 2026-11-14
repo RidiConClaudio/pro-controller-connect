@@ -13,7 +13,7 @@ namespace ProControllerConnect;
 
 public enum LinkState { Starting, Connected, Disconnected, NotPaired, Removing, Searching, Pairing, BluetoothOff, NoAdapter, Error }
 
-/// <summary>Passi della procedura di riabbinamento (usati dallo stepper della UI).</summary>
+/// <summary>Steps of the re-pairing procedure (shown by the UI stepper).</summary>
 public enum FlowStep { None = 0, Remove = 1, Sync = 2, Pair = 3, Done = 4 }
 
 public sealed record ServiceStatus(LinkState State, FlowStep Step, string Title, string Detail, bool Busy, bool AutoFlow);
@@ -21,8 +21,8 @@ public sealed record ServiceStatus(LinkState State, FlowStep Step, string Title,
 public sealed record ControllerInfo(DeviceInformation Info, string Name, bool Connected);
 
 /// <summary>
-/// Gestisce l'intero ciclo: monitoraggio del controller abbinato, rimozione dell'abbinamento
-/// "bloccato", ricerca del controller in modalità SYNC e nuovo abbinamento automatico.
+/// Runs the whole cycle: monitors the paired controller, removes a "stuck" pairing,
+/// searches for the controller in SYNC mode and pairs it again automatically.
 /// </summary>
 public sealed class ControllerService : IDisposable
 {
@@ -48,7 +48,7 @@ public sealed class ControllerService : IDisposable
     public event Action<string, string>? Notify;
 
     public ServiceStatus Current { get; private set; } =
-        new(LinkState.Starting, FlowStep.None, "Avvio…", "Controllo del Bluetooth in corso", true, false);
+        new(LinkState.Starting, FlowStep.None, Loc.T("starting_title"), Loc.T("starting_detail"), true, false);
 
     public bool FlowRunning => _flowCts != null;
 
@@ -56,9 +56,9 @@ public sealed class ControllerService : IDisposable
 
     public void Start() => _ = Task.Run(() => MonitorLoopAsync(_loopCts.Token));
 
-    // ───────────────────────────── API pubblica ─────────────────────────────
+    // ───────────────────────────── Public API ─────────────────────────────
 
-    /// <summary>Procedura manuale: rimuove, cerca (90 s) e riabbina.</summary>
+    /// <summary>Manual procedure: remove, search (90 s) and pair again.</summary>
     public Task ConnectNowAsync()
     {
         _autoSuspended = false;
@@ -69,7 +69,7 @@ public sealed class ControllerService : IDisposable
     public void CancelFlow()
     {
         if (_flowCts == null) return;
-        if (_flowIsAuto) _autoSuspended = true; // l'utente ha interrotto: niente ripartenza immediata
+        if (_flowIsAuto) _autoSuspended = true; // user stopped it: no immediate restart
         _flowCts.Cancel();
     }
 
@@ -88,32 +88,32 @@ public sealed class ControllerService : IDisposable
             var access = await Radio.RequestAccessAsync();
             if (access != RadioAccessStatus.Allowed)
             {
-                WriteLog($"Accesso alla radio negato ({access}). Controlla Impostazioni › Privacy › Radio.");
+                WriteLog(Loc.T("log_radio_denied", access));
                 return;
             }
             var radio = await GetRadioAsync();
-            if (radio == null) { WriteLog("Nessuna radio Bluetooth trovata."); return; }
+            if (radio == null) { WriteLog(Loc.T("log_no_radio")); return; }
 
-            WriteLog("Riavvio della radio Bluetooth…");
-            Publish(LinkState.Removing, FlowStep.None, "Riavvio del Bluetooth…", "Spegnimento e riaccensione della radio", force: true);
+            WriteLog(Loc.T("log_radio_restart"));
+            Publish(LinkState.Removing, FlowStep.None, Loc.T("restarting_title"), Loc.T("restarting_detail"), force: true);
             _holdUntil = DateTime.UtcNow.AddSeconds(5);
             await radio.SetStateAsync(RadioState.Off);
             await Task.Delay(2500);
             await radio.SetStateAsync(RadioState.On);
-            WriteLog("Radio Bluetooth riaccesa.");
+            WriteLog(Loc.T("log_radio_on"));
             _holdUntil = DateTime.UtcNow.AddSeconds(2);
         }
         catch (Exception ex)
         {
-            WriteLog("Riavvio Bluetooth fallito: " + ex.Message);
+            WriteLog(Loc.T("log_radio_fail", ex.Message));
         }
     }
 
-    // ───────────────────────────── Monitoraggio ─────────────────────────────
+    // ───────────────────────────── Monitoring ─────────────────────────────
 
     async Task MonitorLoopAsync(CancellationToken ct)
     {
-        WriteLog("Servizio avviato. Filtro dispositivi: " + _settings.NameFilter);
+        WriteLog(Loc.T("log_started", _settings.NameFilter));
         while (!ct.IsCancellationRequested)
         {
             try
@@ -122,7 +122,7 @@ public sealed class ControllerService : IDisposable
             }
             catch (Exception ex)
             {
-                WriteLog("Errore di monitoraggio: " + ex.Message);
+                WriteLog(Loc.T("log_monitor_error", ex.Message));
             }
             try { await Task.Delay(2000, ct); } catch (OperationCanceledException) { break; }
         }
@@ -133,16 +133,16 @@ public sealed class ControllerService : IDisposable
         var adapter = await BluetoothAdapter.GetDefaultAsync();
         if (adapter == null)
         {
-            Publish(LinkState.NoAdapter, FlowStep.None, "Bluetooth non disponibile",
-                "Nessun adattatore Bluetooth trovato su questo PC");
+            Publish(LinkState.NoAdapter, FlowStep.None, Loc.T("no_adapter_title"),
+                Loc.T("no_adapter_detail"));
             return;
         }
         var radio = await adapter.GetRadioAsync();
         if (radio != null && radio.State != RadioState.On)
         {
             _disconnectedSince = null;
-            Publish(LinkState.BluetoothOff, FlowStep.None, "Bluetooth disattivato",
-                "Attiva il Bluetooth o usa «Riavvia Bluetooth»");
+            Publish(LinkState.BluetoothOff, FlowStep.None, Loc.T("bt_off_title"),
+                Loc.T("bt_off_detail"));
             return;
         }
 
@@ -152,17 +152,17 @@ public sealed class ControllerService : IDisposable
 
         if (connected != null)
         {
-            if (!_wasConnected) WriteLog($"«{connected.Name}» connesso.");
+            if (!_wasConnected) WriteLog(Loc.T("log_connected", connected.Name));
             _wasConnected = true;
             _disconnectedSince = null;
             _autoSuspended = false;
-            Publish(LinkState.Connected, FlowStep.None, "Controller connesso", $"{connected.Name} · pronto all'uso");
+            Publish(LinkState.Connected, FlowStep.None, Loc.T("connected_title"), Loc.T("connected_detail", connected.Name));
             return;
         }
 
         if (_wasConnected)
         {
-            WriteLog("Controller disconnesso.");
+            WriteLog(Loc.T("log_disconnected"));
             _wasConnected = false;
         }
 
@@ -172,14 +172,14 @@ public sealed class ControllerService : IDisposable
             int remaining = _settings.GraceSeconds - (int)(DateTime.UtcNow - _disconnectedSince.Value).TotalSeconds;
             if (auto && remaining <= 0)
             {
-                WriteLog("Il controller non si è ricollegato: avvio la riparazione automatica.");
+                WriteLog(Loc.T("log_autorepair"));
                 _ = RunFlowAsync(isAuto: true);
                 return;
             }
-            Publish(LinkState.Disconnected, FlowStep.None, "Controller non connesso",
+            Publish(LinkState.Disconnected, FlowStep.None, Loc.T("disconnected_title"),
                 auto
-                    ? $"Abbinamento probabilmente bloccato. Riparazione automatica tra {Math.Max(remaining, 0)} s"
-                    : "Premi «Connetti controller», poi il pulsante SYNC");
+                    ? Loc.T("disconnected_auto", Math.Max(remaining, 0))
+                    : Loc.T("disconnected_manual"));
         }
         else
         {
@@ -189,13 +189,12 @@ public sealed class ControllerService : IDisposable
                 _ = RunFlowAsync(isAuto: true);
                 return;
             }
-            Publish(LinkState.NotPaired, FlowStep.None, "Nessun controller abbinato",
-                _autoSuspended ? "Ricerca automatica in pausa. Premi «Connetti controller»"
-                               : "Premi «Connetti controller» per iniziare");
+            Publish(LinkState.NotPaired, FlowStep.None, Loc.T("notpaired_title"),
+                _autoSuspended ? Loc.T("notpaired_paused") : Loc.T("notpaired_detail"));
         }
     }
 
-    // ───────────────────────────── Procedura di riabbinamento ─────────────────────────────
+    // ───────────────────────────── Re-pairing procedure ─────────────────────────────
 
     async Task RunFlowAsync(bool isAuto)
     {
@@ -206,66 +205,65 @@ public sealed class ControllerService : IDisposable
         var ct = cts.Token;
         try
         {
-            // 1. Rimozione dell'abbinamento esistente (quello che "si blocca")
-            Publish(LinkState.Removing, FlowStep.Remove, "Rimozione abbinamento…", "Pulizia del vecchio collegamento", force: true);
+            // 1. Remove the existing (stuck) pairing
+            Publish(LinkState.Removing, FlowStep.Remove, Loc.T("removing_title"), Loc.T("removing_detail"), force: true);
             var paired = await GetPairedControllersAsync();
             foreach (var c in paired)
             {
                 var r = await c.Info.Pairing.UnpairAsync();
-                WriteLog($"Rimosso «{c.Name}»: {r.Status}");
+                WriteLog(Loc.T("log_removed", c.Name, r.Status));
             }
             if (paired.Count > 0) await Task.Delay(1500, ct);
 
-            // 2. Attesa del controller in modalità SYNC
+            // 2. Wait for the controller in SYNC mode
             Publish(LinkState.Searching, FlowStep.Sync,
-                isAuto ? "In attesa del controller" : "Premi il pulsante SYNC",
-                "Premi il piccolo tasto SYNC sul bordo superiore del controller finché i LED scorrono" +
-                (isAuto ? ". Verrà abbinato in automatico." : ""), force: true);
-            WriteLog(isAuto ? "Ricerca automatica avviata." : "Ricerca avviata (90 s).");
+                Loc.T(isAuto ? "waiting_title_auto" : "waiting_title"),
+                Loc.T(isAuto ? "waiting_detail_auto" : "waiting_detail"), force: true);
+            WriteLog(Loc.T(isAuto ? "log_search_auto" : "log_search"));
 
             var device = await DiscoverAsync(isAuto ? null : TimeSpan.FromSeconds(90), dutyCycle: isAuto, ct);
             if (device == null)
             {
-                WriteLog("Nessun controller trovato.");
-                Fail("Controller non trovato", "Assicurati che i LED scorrano dopo aver premuto SYNC e riprova");
+                WriteLog(Loc.T("log_notfound"));
+                Fail(Loc.T("notfound_title"), Loc.T("notfound_detail"));
                 return;
             }
-            WriteLog($"Trovato «{device.Name}».");
+            WriteLog(Loc.T("log_found", device.Name));
 
-            // 3. Abbinamento
-            Publish(LinkState.Pairing, FlowStep.Pair, "Abbinamento in corso…", device.Name, force: true);
+            // 3. Pair
+            Publish(LinkState.Pairing, FlowStep.Pair, Loc.T("pairing_title"), device.Name, force: true);
             if (!await PairAsync(device, ct))
             {
-                Fail("Abbinamento non riuscito", "Premi di nuovo SYNC e riprova");
+                Fail(Loc.T("pairfail_title"), Loc.T("pairfail_detail"));
                 return;
             }
 
-            // 4. Attesa della connessione
-            Publish(LinkState.Pairing, FlowStep.Done, "Connessione…", "In attesa che il controller si colleghi", force: true);
+            // 4. Wait for the connection
+            Publish(LinkState.Pairing, FlowStep.Done, Loc.T("connecting_title"), Loc.T("connecting_detail"), force: true);
             bool ok = await WaitConnectedAsync(device.Id, TimeSpan.FromSeconds(20), ct);
             _wasConnected = ok;
             if (ok)
             {
-                WriteLog($"«{device.Name}» abbinato e connesso.");
-                Publish(LinkState.Connected, FlowStep.Done, "Controller connesso", $"{device.Name} · pronto all'uso", force: true);
-                Notify?.Invoke("Controller connesso", $"{device.Name} è pronto all'uso.");
+                WriteLog(Loc.T("log_paired_connected", device.Name));
+                Publish(LinkState.Connected, FlowStep.Done, Loc.T("connected_title"), Loc.T("connected_detail", device.Name), force: true);
+                Notify?.Invoke(Loc.T("connected_title"), Loc.T("notify_connected_text", device.Name));
             }
             else
             {
-                WriteLog("Abbinato, ma la connessione non è ancora attiva.");
-                Publish(LinkState.Disconnected, FlowStep.Pair, "Abbinato", "Premi un tasto del controller per collegarlo", force: true);
+                WriteLog(Loc.T("log_paired_not_connected"));
+                Publish(LinkState.Disconnected, FlowStep.Pair, Loc.T("paired_title"), Loc.T("paired_detail"), force: true);
             }
             _holdUntil = DateTime.UtcNow.AddSeconds(4);
         }
         catch (OperationCanceledException)
         {
-            WriteLog("Operazione annullata.");
+            WriteLog(Loc.T("log_cancelled"));
             _holdUntil = DateTime.MinValue;
         }
         catch (Exception ex)
         {
-            WriteLog("Errore: " + ex.Message);
-            Fail("Si è verificato un errore", ex.Message);
+            WriteLog(Loc.T("log_error", ex.Message));
+            Fail(Loc.T("error_title"), ex.Message);
         }
         finally
         {
@@ -316,7 +314,7 @@ public sealed class ControllerService : IDisposable
         return result;
     }
 
-    /// <summary>Cerca un controller non abbinato (cioè in modalità SYNC). timeout null = all'infinito.</summary>
+    /// <summary>Searches for an unpaired controller (i.e. in SYNC mode). A null timeout searches forever.</summary>
     async Task<DeviceInformation?> DiscoverAsync(TimeSpan? timeout, bool dutyCycle, CancellationToken ct)
     {
         var deadline = timeout.HasValue ? DateTime.UtcNow + timeout.Value : DateTime.MaxValue;
@@ -329,7 +327,7 @@ public sealed class ControllerService : IDisposable
             var found = await ScanOnceAsync(slice, ct);
             if (found != null) return found;
 
-            // In automatico la ricerca è a cicli, per non occupare la radio senza sosta.
+            // In automatic mode the search runs in cycles so the radio isn't busy non-stop.
             if (dutyCycle) await Task.Delay(3000, ct);
         }
         return null;
@@ -401,7 +399,7 @@ public sealed class ControllerService : IDisposable
             try
             {
                 var result = await custom.PairAsync(kinds, DevicePairingProtectionLevel.None);
-                WriteLog($"Abbinamento (tentativo {attempt}): {result.Status}");
+                WriteLog(Loc.T("log_pair_attempt", attempt, result.Status));
                 if (result.Status is DevicePairingResultStatus.Paired or DevicePairingResultStatus.AlreadyPaired)
                     return true;
             }
