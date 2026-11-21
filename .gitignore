@@ -4,3 +4,6 @@ dist/
 *.user
 .vs/
 *.pdb
+
+# Rust build output
+target/

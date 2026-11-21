@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pro Controller Connect</title>
+<style>
+:root {
+  --bg: #0E1014; --card: #161920; --card-hover: #1D212B; --line: #252A35;
+  --text: #ECEEF2; --sub: #8B93A3; --accent: #5B8CFF; --track-off: #2D3340;
+  --grad: linear-gradient(135deg, #6E9BFF, #7B5CFF);
+  --icon: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  --ui: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --mono: "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px var(--ui); overflow: hidden;
+  user-select: none; cursor: default; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; outline: none; }
+.ic { font-family: var(--icon); font-weight: normal; font-style: normal; line-height: 1; }
+[hidden] { display: none !important; }
+
+/* ── Title bar */
+#titlebar { height: 44px; display: flex; align-items: center; padding: 0 6px 0 16px; }
+#titlebar .logo { width: 22px; height: 22px; border-radius: 6px; background: var(--grad); display: grid; place-items: center;
+  color: #fff; font-size: 13px; }
+#titlebar .name { margin-left: 10px; font-size: 13px; color: var(--sub); flex: 1; }
+.tbtn { width: 40px; height: 32px; border-radius: 8px; font-family: var(--icon); font-size: 10px; color: var(--sub);
+  cursor: default; }
+.tbtn:hover { background: rgba(255,255,255,.133); color: var(--text); }
+.tbtn.close { margin-left: 2px; }
+.tbtn.close:hover { background: #E5484D; color: #fff; }
+
+#content { padding: 0 24px 22px; }
+
+/* ── Status indicator */
+.indicator { width: 152px; height: 152px; margin: 0 auto; position: relative; display: grid; place-items: center; }
+.indicator > * { grid-area: 1 / 1; }
+#glow { width: 140px; height: 140px; border-radius: 50%; opacity: .14; background: var(--c); }
+#pulse { width: 112px; height: 112px; border-radius: 50%; border: 2px solid var(--c); opacity: 0; }
+#pulse.on { animation: pulse 1.6s cubic-bezier(.33, 1, .68, 1) infinite; }
+@keyframes pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.32); opacity: 0; } }
+.disc { width: 112px; height: 112px; border-radius: 50%; background: var(--card); border: 1px solid var(--line); }
+#glyph { font-size: 48px; color: var(--c); }
+#badge { position: absolute; right: 24px; bottom: 24px; width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid var(--bg); background: var(--c); display: grid; place-items: center; color: #fff; font-size: 12px; }
+
+#title { font-size: 22px; font-weight: 600; text-align: center; }
+#detail { font-size: 13px; color: var(--sub); text-align: center; margin: 6px 10px 0; min-height: 36px; line-height: 18px; }
+
+/* ── Buttons */
+.btn { width: 100%; height: 50px; border-radius: 13px; font-size: 15px; font-weight: 600; display: flex;
+  align-items: center; justify-content: center; border: 1px solid transparent; }
+.btn.primary { background: var(--grad); color: #fff; }
+.btn.primary:hover { opacity: .88; }
+.btn.primary:active { opacity: .75; }
+.btn.secondary { background: var(--card); border-color: var(--line); color: var(--text); }
+.btn.secondary:hover { background: var(--card-hover); }
+.btn.secondary:active { opacity: .8; }
+.btn:disabled { opacity: .4; cursor: default; }
+#main { margin-top: 16px; }
+#main .ic { font-size: 16px; margin: 1px 10px 0 0; }
+
+/* ── Cards, tabs */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+.segments { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.seg { height: 34px; border-radius: 9px; color: var(--sub); font-size: 13px; display: flex; align-items: center;
+  justify-content: center; }
+.seg:hover { color: var(--text); }
+.seg.on { background: #272C38; color: var(--text); font-weight: 600; }
+.seg .ic { font-size: 14px; margin: 1px 8px 0 0; }
+#tabs { margin-top: 14px; padding: 4px; border-radius: 12px; }
+
+.pages { display: grid; margin-top: 12px; }
+.pages > * { grid-area: 1 / 1; align-self: start; }
+.pages > .off { visibility: hidden; }
+
+/* ── Stepper */
+#stepper { padding: 16px 8px; }
+.steps { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); }
+.steps::before { content: ""; position: absolute; left: 48px; right: 48px; top: 13px; height: 2px; background: var(--line); }
+.step { display: flex; flex-direction: column; align-items: center; position: relative; }
+.dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); background: var(--card);
+  display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--sub); }
+.dot.ic { font-family: var(--icon); }
+.step .label { font-size: 11.5px; margin-top: 7px; color: var(--sub); }
+.sep { height: 1px; background: var(--line); margin: 16px 8px 14px; }
+.help { margin: 0 12px; }
+.help h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.help p { margin: 2px 0 0; font-size: 12px; color: var(--sub); line-height: 19px; }
+.help h4 + p + h4 { margin-top: 12px; }
+
+/* ── Live test */
+#tester { padding: 12px 14px; }
+.tester-head { display: flex; align-items: flex-start; }
+.tester-head > div { flex: 1; }
+.tester-head h4 { margin: 0; font-size: 14px; font-weight: 600; }
+.desc { font-size: 12px; color: var(--sub); margin-top: 2px; }
+#ibadge { border-radius: 11px; padding: 4px 10px; display: flex; align-items: center; font-size: 11.5px; white-space: nowrap; }
+#idot { width: 7px; height: 7px; border-radius: 50%; margin: 1px 7px 0 0; }
+#pad { display: block; height: 190px; margin: 10px auto 0; }
+#chips { display: flex; flex-wrap: wrap; justify-content: center; margin: 8px 0 10px; }
+.chip { background: #222630; border-radius: 6px; padding: 2px 7px 3px; margin: 2px; min-width: 24px; text-align: center;
+  font-size: 10.5px; color: #9AA2B2; }
+.chip.on { background: var(--accent); color: #fff; }
+.tester-foot { display: flex; justify-content: space-between; color: var(--sub); }
+#axes { font: 11px var(--mono); white-space: pre; }
+#lastinput { font-size: 11.5px; }
+
+/* ── Settings */
+#settings-card { padding: 2px 16px; }
+.row { display: flex; align-items: center; padding: 9px 0; cursor: pointer; }
+.row + .row, .row + .lang { border-top: 1px solid var(--line); }
+.row > div { flex: 1; }
+.row h4 { margin: 0; font-size: 14px; font-weight: normal; }
+.switch { width: 42px; height: 24px; border-radius: 12px; background: var(--track-off); margin-left: 14px; position: relative;
+  flex: none; transition: background .16s; }
+.switch::after { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; transition: transform .16s cubic-bezier(.33, 1, .68, 1); }
+.row.on .switch { background: var(--accent); }
+.row.on .switch::after { transform: translateX(18px); }
+.lang { display: flex; align-items: center; padding: 10px 0; }
+.lang h4 { margin: 0; flex: 1; font-size: 14px; font-weight: normal; }
+#langs { background: #11141A; border-radius: 10px; padding: 3px; width: 276px; }
+#langs .seg { font-size: 12px; }
+
+.tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
+.tools .btn { height: 58px; font-size: 12px; font-weight: normal; flex-direction: column; }
+.tools .ic { font-size: 16px; margin-bottom: 6px; }
+#logpanel { margin-top: 12px; padding: 10px 12px; }
+#logbox { width: 100%; height: 150px; resize: none; border: 0; outline: none; background: transparent; color: var(--sub);
+  font: 11px var(--mono); user-select: text; cursor: text; }
+#logbox::-webkit-scrollbar { width: 8px; }
+#logbox::-webkit-scrollbar-thumb { background: #2D3340; border-radius: 4px; }
+</style>
+<script>/*BOOT*/</script>
+</head>
+<body>
+<div id="root">
+  <div id="titlebar">
+    <div class="logo ic">&#xE7FC;</div>
+    <div class="name">Pro Controller Connect</div>
+    <button class="tbtn" id="min" data-tip="tip_minimize">&#xE921;</button>
+    <button class="tbtn close" id="close" data-tip="tip_close">&#xE8BB;</button>
+  </div>
+
+  <div id="content">
+    <div class="indicator" id="indicator" style="--c:#8B93A3">
+      <div id="glow"></div>
+      <div id="pulse"></div>
+      <div class="disc"></div>
+      <div id="glyph" class="ic">&#xE7FC;</div>
+      <div id="badge" class="ic" hidden></div>
+    </div>
+    <div id="title" data-l="starting_title"></div>
+    <div id="detail"></div>
+
+    <button id="main" class="btn primary"><span class="ic" id="mainglyph">&#xE702;</span><span id="maintext" data-l="btn_connect"></span></button>
+
+    <div id="tabs" class="card segments">
+      <button class="seg on" id="tab-ctrl"><span class="ic">&#xE7FC;</span><span data-l="tab_controller"></span></button>
+      <button class="seg" id="tab-set"><span class="ic">&#xE713;</span><span data-l="tab_settings"></span></button>
+    </div>
+
+    <div class="pages">
+      <div id="page-ctrl">
+        <div id="stepper" class="card">
+          <div class="steps" id="steps"></div>
+          <div class="sep"></div>
+          <div class="help">
+            <h4 data-l="sync_where_title"></h4><p data-l="sync_where_text"></p>
+            <h4 data-l="after_title"></h4><p data-l="after_text"></p>
+          </div>
+        </div>
+        <div id="tester" class="card" hidden>
+          <div class="tester-head">
+            <div><h4 data-l="live_test"></h4><div class="desc" id="devinfo" data-l="device_searching"></div></div>
+            <div id="ibadge"><span id="idot"></span><span id="ibadgetext" data-l="badge_press"></span></div>
+          </div>
+          <svg id="pad" viewBox="0 0 420 236"></svg>
+          <div id="chips"></div>
+          <div class="tester-foot"><span id="axes"></span><span id="lastinput"></span></div>
+        </div>
+      </div>
+
+      <div id="page-set" class="off">
+        <div id="settings-card" class="card">
+          <div class="row" data-key="AutoMode"><div><h4 data-l="set_auto_title"></h4><div class="desc" data-l="set_auto_desc"></div></div><span class="switch"></span></div>
+          <div class="row" data-key="StartWithWindows"><div><h4 data-l="set_startup_title"></h4><div class="desc" data-l="set_startup_desc"></div></div><span class="switch"></span></div>
+          <div class="row" data-key="StartMinimized"><div><h4 data-l="set_silent_title"></h4><div class="desc" data-l="set_silent_desc"></div></div><span class="switch"></span></div>
+          <div class="row" data-key="Notifications"><div><h4 data-l="set_notify_title"></h4><div class="desc" data-l="set_notify_desc"></div></div><span class="switch"></span></div>
+          <div class="lang" data-tip="set_lang_desc"><h4 data-l="set_lang_title"></h4><div id="langs" class="segments"></div></div>
+        </div>
+        <div class="tools">
+          <button class="btn secondary" id="restartbt" data-tip="tool_restart_tip"><span class="ic">&#xE72C;</span><span data-l="tool_restart"></span></button>
+          <button class="btn secondary" id="btsettings" data-tip="tool_btsettings_tip"><span class="ic">&#xE713;</span><span data-l="tool_btsettings"></span></button>
+          <button class="btn secondary" id="logbtn" data-tip="tool_log_tip"><span class="ic">&#xE81C;</span><span id="logbtntext" data-l="tool_log"></span></button>
+        </div>
+        <div id="logpanel" class="card" hidden><textarea id="logbox" readonly spellcheck="false"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const B = window.BOOT || { loc: {}, langs: [], settings: {} };
+const T = (k, ...a) => (B.loc[k] ?? k).replace(/\{(\d)\}/g, (_, i) => a[i] ?? '');
+const send = o => window.ipc.postMessage(JSON.stringify(o));
+const $ = id => document.getElementById(id);
+const SVG = 'http://www.w3.org/2000/svg';
+
+const GREEN = '#34C76F', ACCENT = '#5B8CFF', AMBER = '#FFB020', RED = '#FF5A5F', GRAY = '#8B93A3';
+const G = { ctrl: '', check: '', search: '', sync: '', warn: '', bt: '',
+            x: '', refresh: '' };
+
+document.querySelectorAll('[data-l]').forEach(e => e.textContent = T(e.dataset.l));
+document.querySelectorAll('[data-tip]').forEach(e => e.title = T(e.dataset.tip));
+
+// ── Window: drag, minimize, hide, height follows the content
+$('titlebar').addEventListener('mousedown', e => { if (e.button === 0 && !e.target.closest('button')) send({ t: 'drag' }); });
+$('min').onclick = () => send({ t: 'min' });
+$('close').onclick = () => send({ t: 'close' });
+let lastH = 0;
+new ResizeObserver(() => {
+  const h = Math.ceil($('root').getBoundingClientRect().height);
+  if (h !== lastH) { lastH = h; send({ t: 'size', h }); }
+}).observe($('root'));
+
+// ── Tabs
+let tab = 'ctrl';
+function setTab(t) {
+  tab = t;
+  $('tab-ctrl').classList.toggle('on', t === 'ctrl');
+  $('tab-set').classList.toggle('on', t === 'set');
+  $('page-ctrl').classList.toggle('off', t !== 'ctrl');
+  $('page-set').classList.toggle('off', t !== 'set');
+  updateInputWanted();
+}
+$('tab-ctrl').onclick = () => setTab('ctrl');
+$('tab-set').onclick = () => setTab('set');
+
+// ── Status
+let connected = false;
+const stepLabels = ['step_remove', 'step_sync', 'step_pair', 'step_connected'];
+const steps = stepLabels.map((k, i) => {
+  const s = document.createElement('div'); s.className = 'step';
+  s.innerHTML = `<div class="dot">${i + 1}</div><div class="label"></div>`;
+  s.querySelector('.label').textContent = T(k);
+  $('steps').appendChild(s);
+  return { dot: s.querySelector('.dot'), label: s.querySelector('.label') };
+});
+
+function applyStatus(st) {
+  const map = {
+    Connected: [GREEN, G.ctrl, G.check, false], Searching: [ACCENT, G.ctrl, G.search, true],
+    Pairing: [ACCENT, G.ctrl, G.sync, true], Removing: [ACCENT, G.ctrl, G.sync, true],
+    Disconnected: [AMBER, G.ctrl, G.warn, false], BluetoothOff: [RED, G.bt, G.x, false], NoAdapter: [RED, G.bt, G.x, false],
+    Error: [RED, G.ctrl, G.x, false], Starting: [GRAY, G.ctrl, G.sync, true],
+  };
+  const [color, glyph, badge, pulse] = map[st.state] || [GRAY, G.ctrl, '', false];
+  $('indicator').style.setProperty('--c', color);
+  $('glyph').textContent = glyph;
+  $('badge').textContent = badge; $('badge').hidden = !badge;
+  $('pulse').classList.toggle('on', pulse);
+  $('title').textContent = st.title;
+  $('detail').textContent = st.detail;
+
+  const main = $('main');
+  if (st.busy) { main.className = 'btn secondary'; $('mainglyph').textContent = G.x; $('maintext').textContent = T(st.autoFlow ? 'btn_stop_search' : 'btn_cancel'); }
+  else if (st.state === 'Connected') { main.className = 'btn secondary'; $('mainglyph').textContent = G.refresh; $('maintext').textContent = T('btn_repair'); }
+  else { main.className = 'btn primary'; $('mainglyph').textContent = G.bt; $('maintext').textContent = T('btn_connect'); }
+  main.disabled = (st.state === 'BluetoothOff' || st.state === 'NoAdapter') && !st.busy;
+
+  // Stepper
+  const success = st.state === 'Connected' && st.step === 4, error = st.state === 'Error';
+  steps.forEach((s, i) => {
+    const n = i + 1, d = s.dot;
+    d.style.cssText = ''; d.classList.remove('ic');
+    if (st.step !== 0 && (n < st.step || success)) {
+      const c = success ? GREEN : ACCENT;
+      d.style.background = c; d.style.borderColor = c; d.style.color = '#fff'; d.style.fontSize = '11px';
+      d.classList.add('ic'); d.textContent = G.check; s.label.style.color = 'var(--text)';
+    } else if (st.step !== 0 && n === st.step) {
+      const c = error ? RED : ACCENT;
+      d.style.borderColor = c; d.style.color = c;
+      if (error) { d.classList.add('ic'); d.textContent = G.x; d.style.fontSize = '10px'; } else d.textContent = n;
+      s.label.style.color = 'var(--text)';
+    } else { d.textContent = n; s.label.style.color = ''; }
+  });
+
+  const c = st.state === 'Connected';
+  if (c !== connected) { connected = c; updateTester(); }
+}
+$('main').onclick = () => send({ t: 'main' });
+
+// ── Live test
+let device = { text: null, present: false };
+let verified = false, lastInput = 0, prev = null, latest = null;
+
+function updateTester() {
+  $('tester').hidden = !connected;
+  $('stepper').hidden = connected;
+  if (!connected) { verified = false; lastInput = 0; }
+  $('devinfo').textContent = device.present ? T('device_detected', device.text || '') : T('device_waiting');
+  updateBadge();
+  updateInputWanted();
+}
+let inputWanted = null;
+function updateInputWanted() {
+  const on = connected && tab === 'ctrl';
+  if (on !== inputWanted) { inputWanted = on; send({ t: 'input', on }); }
+}
+function updateBadge() {
+  let c, text;
+  if (!device.present) { c = AMBER; text = T('badge_notdetected'); }
+  else if (verified && performance.now() - lastInput < 250) { c = ACCENT; text = T('badge_receiving'); }
+  else if (verified) { c = GREEN; text = T('badge_works'); }
+  else { c = GRAY; text = T('badge_press'); }
+  $('idot').style.background = c;
+  $('ibadge').style.background = c + '30';
+  $('ibadgetext').textContent = text;
+}
+function onInput(r) {
+  latest = r;
+  let changed = !prev || r.h !== prev.h || r.b.length !== prev.b.length || r.b.some((v, i) => v !== prev.b[i]);
+  if (prev && prev.a.length === r.a.length) r.a.forEach((v, i) => { if (Math.abs(v - prev.a[i]) > 0.04) changed = true; });
+  if (!changed) return;
+  if (prev) { // don't count the first reading
+    lastInput = performance.now();
+    if (!verified) { verified = true; const m = T('log_input_ok'); appendLog(now() + '  ' + m); send({ t: 'log', msg: m }); }
+  }
+  prev = r;
+  pad.update(r);
+}
+const fmt = (v, already) => { let x = already ? v : v * 2 - 1; if (Math.abs(x) < 0.08) x = 0; return (x > 0 ? '+' : x < 0 ? '-' : ' ') + Math.abs(x).toFixed(2); };
+const ago = s => s < 60 ? `${s | 0} s` : s < 3600 ? `${(s / 60) | 0} min` : `${(s / 3600) | 0} h`;
+setInterval(() => {
+  if ($('tester').hidden) return;
+  const a = latest && latest.a;
+  if (a && a.length >= 4) $('axes').textContent = `L ${fmt(a[0])} ${fmt(-(a[1] * 2 - 1), true)}   R ${fmt(a[2])} ${fmt(-(a[3] * 2 - 1), true)}`;
+  if (verified) { const s = (performance.now() - lastInput) / 1000; $('lastinput').textContent = s < 1.5 ? T('last_input_now') : T('last_input_ago', ago(s)); }
+  else $('lastinput').textContent = '';
+  updateBadge();
+}, 100);
+
+// ── Controller drawing (vector, with live button mapping)
+const pad = (() => {
+  const B_ = 0, A = 1, Y = 2, X = 3, L = 4, R = 5, ZL = 6, ZR = 7, MINUS = 8, PLUS = 9, LS = 10, RS = 11, HOME = 12, CAPTURE = 13;
+  const UP = 100, DOWN = 101, LEFT = 102, RIGHT = 103;
+  const svg = $('pad'), parts = {}, chips = {}, state = {};
+  const el = (tag, attrs, parent = svg) => { const e = document.createElementNS(SVG, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  svg.innerHTML = `<defs>
+    <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A2F3A"/><stop offset="1" stop-color="#1A1E26"/></linearGradient>
+    <linearGradient id="gIdle" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#333947"/><stop offset="1" stop-color="#242933"/></linearGradient>
+    <linearGradient id="gOn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7AA3FF"/><stop offset="1" stop-color="#4A74F0"/></linearGradient>
+    <filter id="fGlow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4.5" flood-color="#5B8CFF" flood-opacity=".9"/></filter>
+    <filter id="fLed" x="-200%" y="-200%" width="500%" height="500%"><feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#34C76F"/></filter>
+  </defs>`;
+  const WELL = '#12151B', IDLE_STROKE = '#424A5B', LABEL = '#9AA2B2';
+  function part(id, shape, label) {
+    shape.setAttribute('fill', 'url(#gIdle)'); shape.setAttribute('stroke', IDLE_STROKE);
+    if (!shape.getAttribute('stroke-width')) shape.setAttribute('stroke-width', 1);
+    if (label) label.setAttribute('fill', LABEL);
+    (parts[id] ||= []).push([shape, label]);
+  }
+  const text = (x, y, s, size, weight, parent) => { const t = el('text', { x, y, 'font-size': size, 'font-weight': weight || 400, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'Segoe UI Variable Display, Segoe UI', 'pointer-events': 'none' }, parent); t.textContent = s; return t; };
+
+  // Shoulders: ZL/ZR behind, L/R in front, angled like the real controller
+  function shoulder(id, x, y, w, h, angle, label) {
+    const g = el('g', { transform: `rotate(${angle} ${x + w / 2} ${y + h / 2})` });
+    const r = el('rect', { x, y, width: w, height: h, rx: h / 2 }, g);
+    part(id, r, text(x + w / 2, y + h / 2, label, 10.5, 600, g));
+  }
+  shoulder(ZL, 74, 8, 74, 22, -11, 'ZL'); shoulder(ZR, 272, 8, 74, 22, 11, 'ZR');
+  shoulder(L, 56, 30, 98, 20, -11, 'L'); shoulder(R, 266, 30, 98, 20, 11, 'R');
+
+  // Body with grips, top highlight
+  el('path', { d: 'M 130,52 L 290,52 C 332,52 360,60 378,84 C 396,108 408,152 412,190 C 416,222 396,236 374,230 C 354,224 340,206 326,192 C 314,180 300,174 284,174 L 136,174 C 120,174 106,180 94,192 C 80,206 66,224 46,230 C 24,236 4,222 8,190 C 12,152 24,108 42,84 C 60,60 88,52 130,52 Z',
+    fill: 'url(#gBody)', stroke: '#343B4A', 'stroke-width': 1.5 });
+  el('path', { d: 'M 132,58 L 288,58 C 326,58 352,66 368,86', fill: 'none', stroke: 'rgba(255,255,255,.19)', 'stroke-width': 1.2 });
+
+  // Player LEDs (first one lit: controller connected)
+  for (let i = 0; i < 4; i++) el('circle', { cx: 198.5 + i * 8, cy: 162.5, r: 2.5, fill: i ? '#303642' : '#34C76F', ...(i ? {} : { filter: 'url(#fLed)' }) });
+
+  // Sticks
+  function stick(id, cx, cy) {
+    el('circle', { cx, cy, r: 34, fill: WELL, stroke: IDLE_STROKE });
+    el('circle', { cx, cy, r: 22, fill: 'none', stroke: 'rgba(91,140,255,.25)', 'stroke-dasharray': '2 3' });
+    const vec = el('line', { x1: cx, y1: cy, x2: cx, y2: cy, stroke: '#5B8CFF', 'stroke-width': 2, 'stroke-linecap': 'round', opacity: 0 });
+    const knob = el('circle', { cx, cy, r: 17, 'stroke-width': 1.5 }); part(id, knob);
+    const cap = el('circle', { cx, cy, r: 11, fill: 'none', stroke: 'rgba(0,0,0,.31)', 'pointer-events': 'none' });
+    return { cx, cy, knob, cap, vec };
+  }
+  const sticks = [stick(LS, 116, 100), stick(RS, 254, 150)];
+
+  // D-pad
+  const DX = 164, DY = 150;
+  el('circle', { cx: DX, cy: DY, r: 30, fill: WELL });
+  const dg = el('g', { transform: `translate(${DX} ${DY})` });
+  [[UP, 'M 0,-6 L -7,-13 L -7,-25 Q -7,-27 -5,-27 L 5,-27 Q 7,-27 7,-25 L 7,-13 Z', '▲', 0, -20],
+   [DOWN, 'M 0,6 L -7,13 L -7,25 Q -7,27 -5,27 L 5,27 Q 7,27 7,25 L 7,13 Z', '▼', 0, 20],
+   [LEFT, 'M -6,0 L -13,-7 L -25,-7 Q -27,-7 -27,-5 L -27,5 Q -27,7 -25,7 L -13,7 Z', '◀', -20, 0],
+   [RIGHT, 'M 6,0 L 13,-7 L 25,-7 Q 27,-7 27,-5 L 27,5 Q 27,7 25,7 L 13,7 Z', '▶', 20, 0]]
+    .forEach(([id, d, g, gx, gy]) => part(id, el('path', { d }, dg), text(gx, gy, g, 7, 400, dg)));
+
+  // ABXY and center buttons
+  const round = (id, cx, cy, r, label, size) => part(id, el('circle', { cx, cy, r }), text(cx, cy, label, size, 700));
+  const FX = 304, FY = 100;
+  el('circle', { cx: FX, cy: FY, r: 38, fill: WELL });
+  round(X, FX, FY - 22, 12, 'X', 11); round(A, FX + 22, FY, 12, 'A', 11);
+  round(B_, FX, FY + 22, 12, 'B', 11); round(Y, FX - 22, FY, 12, 'Y', 11);
+  round(MINUS, 184, 82, 8, '−', 10); round(PLUS, 236, 82, 8, '+', 10);
+  part(CAPTURE, el('rect', { x: 184.5, y: 107.5, width: 15, height: 15, rx: 3 }));
+  el('circle', { cx: 192, cy: 115, r: 3.5, fill: WELL, 'pointer-events': 'none' });
+  round(HOME, 228, 115, 10, '⌂', 11);
+
+  // Mapping chips
+  [[A, 'A'], [B_, 'B'], [X, 'X'], [Y, 'Y'], [L, 'L'], [R, 'R'], [ZL, 'ZL'], [ZR, 'ZR'], [MINUS, '−'], [PLUS, '+'],
+   [LS, 'L3'], [RS, 'R3'], [HOME, 'Home'], [CAPTURE, T('chip_capture')], [UP, '↑'], [DOWN, '↓'], [LEFT, '←'], [RIGHT, '→']]
+    .forEach(([id, name]) => { const c = document.createElement('div'); c.className = 'chip'; c.textContent = name; chips[id] = c; $('chips').appendChild(c); });
+
+  function set(id, on) {
+    if (state[id] === on) return;
+    state[id] = on;
+    (parts[id] || []).forEach(([shape, label]) => {
+      shape.setAttribute('fill', on ? 'url(#gOn)' : 'url(#gIdle)');
+      shape.setAttribute('stroke', on ? '#9DBBFF' : IDLE_STROKE);
+      if (on) shape.setAttribute('filter', 'url(#fGlow)'); else shape.removeAttribute('filter');
+      if (label) label.setAttribute('fill', on ? '#fff' : LABEL);
+    });
+    if (chips[id]) chips[id].classList.toggle('on', on);
+  }
+  function move(s, ax, ay) {
+    let x = Math.max(-1, Math.min(1, ax * 2 - 1)), y = Math.max(-1, Math.min(1, ay * 2 - 1));
+    if (Math.abs(x) < 0.06) x = 0; if (Math.abs(y) < 0.06) y = 0;
+    const px = s.cx + x * 14, py = s.cy + y * 14;
+    for (const c of [s.knob, s.cap]) { c.setAttribute('cx', px); c.setAttribute('cy', py); }
+    s.vec.setAttribute('x2', px); s.vec.setAttribute('y2', py);
+    s.vec.setAttribute('opacity', Math.min(1, Math.hypot(x, y) * 1.5));
+  }
+  // Hat: 0 center, 1 up, 2 up-right, 3 right, 4 down-right, 5 down, 6 down-left, 7 left, 8 up-left
+  function update(r) {
+    for (let i = 0; i <= CAPTURE; i++) set(i, i < r.b.length && r.b[i]);
+    const h = r.h;
+    set(UP, h === 1 || h === 2 || h === 8); set(DOWN, h === 4 || h === 5 || h === 6);
+    set(LEFT, h === 6 || h === 7 || h === 8); set(RIGHT, h === 2 || h === 3 || h === 4);
+    if (r.a.length >= 4) { move(sticks[0], r.a[0], r.a[1]); move(sticks[1], r.a[2], r.a[3]); }
+  }
+  return { update };
+})();
+
+// ── Settings
+function applySettings(s) {
+  document.querySelectorAll('.row').forEach(r => r.classList.toggle('on', !!s[r.dataset.key]));
+}
+document.querySelectorAll('.row').forEach(r => r.onclick = () => {
+  const on = !r.classList.contains('on');
+  r.classList.toggle('on', on);
+  send({ t: 'setting', key: r.dataset.key, value: on });
+});
+B.langs.forEach(([code, name]) => {
+  const b = document.createElement('button');
+  b.className = 'seg' + ((B.settings.Language || 'auto').toLowerCase() === code ? ' on' : '');
+  b.textContent = name;
+  if (code === 'auto') b.title = T('set_lang_desc');
+  b.onclick = () => { if (!b.classList.contains('on')) { document.querySelectorAll('#langs .seg').forEach(x => x.classList.toggle('on', x === b)); send({ t: 'lang', code }); } };
+  $('langs').appendChild(b);
+});
+applySettings(B.settings);
+
+$('restartbt').onclick = () => send({ t: 'restartBt' });
+$('btsettings').onclick = () => send({ t: 'btSettings' });
+$('logbtn').onclick = () => {
+  const show = $('logpanel').hidden;
+  $('logpanel').hidden = !show;
+  $('logbtntext').textContent = T(show ? 'tool_log_hide' : 'tool_log');
+  if (show) $('logbox').scrollTop = 1e9;
+};
+const now = () => new Date().toTimeString().slice(0, 8);
+function appendLog(line) {
+  const box = $('logbox');
+  let lines = box.value ? box.value.split('\n') : [];
+  lines.push(line);
+  if (lines.length > 400) lines = lines.slice(lines.length - 200);
+  box.value = lines.join('\n');
+  box.scrollTop = 1e9;
+}
+
+// ── Messages from the app
+window.onHost = m => {
+  switch (m.type) {
+    case 'status': applyStatus(m.status); break;
+    case 'device': device = { text: m.text, present: m.present }; updateTester(); break;
+    case 'log': appendLog(m.line); break;
+    case 'logAll': $('logbox').value = m.lines.join('\n'); $('logbox').scrollTop = 1e9; break;
+    case 'input': onInput(m.r); break;
+    case 'settings': applySettings(m.settings); break;
+  }
+};
+send({ t: 'ready' });
+</script>
+</body>
+</html>
