@@ -53,7 +53,7 @@ The executable isn't digitally signed, so Windows SmartScreen may warn you on fi
 - Closing the window only hides it. To quit: right-click the notification area icon › **Exit**.
 - The live test works while the window is in the foreground (a Windows limitation).
 
-Settings and log live in `%APPDATA%\ProControllerConnect\` (`settings.json`, `log.txt`).
+Settings and log live in `%LOCALAPPDATA%\you_are_incredible\ProControllerConnect\` (`settings.json`, `log.txt`, `WebView2\`).
 In `settings.json` you can change:
 
 | Key | Default | Meaning |

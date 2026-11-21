@@ -53,7 +53,7 @@ un avviso (Ulteriori informazioni › Esegui comunque).
 - Chiudere la finestra la nasconde soltanto. Per uscire: clic destro sull'icona nell'area di notifica › **Esci**.
 - Il test dei tasti funziona quando la finestra è in primo piano (limite di Windows).
 
-Impostazioni e log sono in `%APPDATA%\ProControllerConnect\` (`settings.json`, `log.txt`).
+Impostazioni e log sono in `%LOCALAPPDATA%\you_are_incredible\ProControllerConnect\` (`settings.json`, `log.txt`, `WebView2\`).
 In `settings.json` puoi cambiare:
 
 | Chiave | Default | Significato |

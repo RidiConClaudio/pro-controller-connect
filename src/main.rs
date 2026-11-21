@@ -109,7 +109,7 @@ fn main() {
     let mut app = App {
         window,
         webview: None,
-        context: WebContext::new(Some(local_data().join("WebView2"))),
+        context: WebContext::new(Some(settings::folder().join("WebView2"))),
         proxy,
         service: service.clone(),
         settings,
@@ -445,12 +445,6 @@ fn settings_json(s: &Settings) -> Value {
     })
 }
 
-fn local_data() -> std::path::PathBuf {
-    match std::env::var_os("PCC_DATA") {
-        Some(d) if !d.is_empty() => std::path::PathBuf::from(d),
-        _ => std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA").unwrap_or_default()).join("ProControllerConnect"),
-    }
-}
 
 fn single_instance() -> Option<HANDLE> {
     unsafe {
