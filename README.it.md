@@ -40,8 +40,8 @@ Inoltre:
 Scarica `ProControllerConnect.exe` dalla pagina [Releases](../../releases), oppure compilalo
 (vedi sotto).
 
-Requisiti: Windows 10 (versione 2004) o Windows 11 e il
-[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
+Requisiti: Windows 10 (versione 2004) o Windows 11. Non serve installare altro: è un unico file
+portatile di circa 1 MB (la finestra usa Microsoft Edge WebView2, già incluso in Windows 11).
 
 L'eseguibile non è firmato digitalmente: al primo avvio Windows SmartScreen potrebbe mostrare
 un avviso (Ulteriori informazioni › Esegui comunque).
@@ -64,19 +64,19 @@ In `settings.json` puoi cambiare:
 
 ## Compilazione
 
-Serve il [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+Serve [Rust](https://rustup.rs/) (toolchain MSVC).
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+cargo build --release
 ```
 
-Per un eseguibile che non richiede .NET installato usa `--self-contained true` (file più grande).
-L'icona si rigenera con `tools/make-icon.ps1`.
+Il risultato è `target/release/ProControllerConnect.exe`. L'icona si rigenera con `tools/make-icon.ps1`.
 
 ## Traduzioni
 
-Tutti i testi sono in [`Loc.cs`](Loc.cs). Per aggiungere una lingua copia la tabella inglese,
-traducila e aggiungi il codice in `Languages`. Le pull request sono benvenute.
+Tutti i testi sono in [`src/loc.json`](src/loc.json), condiviso dall'app e dalla sua finestra. Per aggiungere
+una lingua copia la tabella `en`, traducila e aggiungi il codice in `LANGUAGES` in `src/loc.rs`.
+Le pull request sono benvenute.
 
 Progetto non affiliato né approvato da Nintendo. "Pro Controller" è citato solo per indicare
 il dispositivo compatibile.
