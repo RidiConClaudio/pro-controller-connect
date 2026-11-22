@@ -265,13 +265,14 @@ impl App {
             .with_html(html)
             .with_background_color(BG)
             .with_devtools(cfg!(debug_assertions))
-            .with_default_context_menus(false)
             .with_ipc_handler(move |req| {
                 let _ = p.send_event(UserEvent::Ipc(req.body().clone()));
             })
             .with_navigation_handler(|uri| uri.starts_with("about:") || uri.starts_with("data:"));
         #[cfg(windows)]
-        let builder = builder.with_browser_accelerator_keys(false);
+        let builder = builder
+            .with_default_context_menus(false)
+            .with_browser_accelerator_keys(false);
         #[cfg(target_os = "linux")]
         if let Some(vbox) = self.window.default_vbox() {
             return builder.build_gtk(vbox);

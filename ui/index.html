@@ -234,6 +234,7 @@ document.querySelectorAll('[data-l]').forEach(e => e.textContent = T(e.dataset.l
 document.querySelectorAll('[data-tip]').forEach(e => e.title = T(e.dataset.tip));
 
 // ── Window: drag, minimize, hide (Windows) or quit (Linux/macOS), height follows the content
+document.addEventListener('contextmenu', e => { if (e.target.id !== 'logbox') e.preventDefault(); });
 $('titlebar').addEventListener('mousedown', e => { if (e.button === 0 && !e.target.closest('button')) send({ t: 'drag' }); });
 $('min').onclick = () => send({ t: 'min' });
 $('close').onclick = () => send({ t: isWin ? 'close' : 'quit' });

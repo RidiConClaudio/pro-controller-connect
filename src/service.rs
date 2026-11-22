@@ -2,13 +2,15 @@
 //! searches for the controller in SYNC mode and pairs it again automatically.
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc, Arc, Condvar, Mutex,
+        Arc, Condvar, Mutex,
     },
     time::{Duration, Instant},
 };
+#[cfg(windows)]
+use std::{collections::HashMap, sync::mpsc};
 
 use serde::Serialize;
 #[cfg(windows)]
