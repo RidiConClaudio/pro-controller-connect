@@ -43,17 +43,38 @@ fn test_folder() -> Option<PathBuf> {
     std::env::var_os("PCC_DATA").filter(|d| !d.is_empty()).map(PathBuf::from)
 }
 
-/// All the app's files (settings, log, WebView2 data) live in
-/// %LOCALAPPDATA%\you_are_incredible\ProControllerConnect.
+/// All the app's files (settings, log, WebView data) live in:
+/// - Windows: %LOCALAPPDATA%\you_are_incredible\ProControllerConnect
+/// - macOS:   ~/Library/Application Support/you_are_incredible/ProControllerConnect
+/// - Linux:   ~/.config/you_are_incredible/ProControllerConnect
 pub fn folder() -> PathBuf {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
     DIR.get_or_init(|| {
         test_folder().unwrap_or_else(|| {
-            let local = PathBuf::from(std::env::var_os("LOCALAPPDATA").unwrap_or_default());
-            let dir = local.join("you_are_incredible").join("ProControllerConnect");
-            let roaming = PathBuf::from(std::env::var_os("APPDATA").unwrap_or_default());
-            migrate_old_folders(&local, &roaming, &dir);
-            dir
+            #[cfg(windows)]
+            {
+                let local = PathBuf::from(std::env::var_os("LOCALAPPDATA").unwrap_or_default());
+                let dir = local.join("you_are_incredible").join("ProControllerConnect");
+                let roaming = PathBuf::from(std::env::var_os("APPDATA").unwrap_or_default());
+                migrate_old_folders(&local, &roaming, &dir);
+                dir
+            }
+            #[cfg(target_os = "macos")]
+            {
+                let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
+                home.join("Library")
+                    .join("Application Support")
+                    .join("you_are_incredible")
+                    .join("ProControllerConnect")
+            }
+            #[cfg(not(any(windows, target_os = "macos")))]
+            {
+                let base = std::env::var_os("XDG_CONFIG_HOME")
+                    .filter(|d| !d.is_empty())
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config"));
+                base.join("you_are_incredible").join("ProControllerConnect")
+            }
         })
     })
     .clone()
@@ -61,6 +82,7 @@ pub fn folder() -> PathBuf {
 
 /// Up to 1.2.0 the files were split between %LOCALAPPDATA%\ProControllerConnect (WebView2)
 /// and %APPDATA%\ProControllerConnect (settings.json, log.txt): move them over once.
+#[cfg(any(windows, test))]
 fn migrate_old_folders(local: &Path, roaming: &Path, dir: &Path) {
     if dir.exists() {
         return;
@@ -106,6 +128,7 @@ impl Settings {
         name_matches(&self.name_filter, device_name)
     }
 
+    #[cfg(windows)]
     pub fn apply_startup(&self) {
         const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
         const VALUE: &str = "ProControllerConnect";
@@ -123,6 +146,62 @@ impl Settings {
             }
         }
     }
+
+    #[cfg(target_os = "linux")]
+    pub fn apply_startup(&self) {
+        if test_folder().is_some() {
+            return;
+        }
+        let base = std::env::var_os("XDG_CONFIG_HOME")
+            .filter(|d| !d.is_empty())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config"));
+        let dir = base.join("autostart");
+        let desktop = dir.join("pro-controller-connect.desktop");
+        match std::env::current_exe() {
+            Ok(exe) if self.start_with_windows => {
+                let _ = std::fs::create_dir_all(&dir);
+                let args = if self.start_minimized { " --minimized" } else { "" };
+                let content = format!(
+                    "[Desktop Entry]\nType=Application\nName=Pro Controller Connect\nExec=\"{}\"{args}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+                    exe.display()
+                );
+                let _ = std::fs::write(&desktop, content);
+            }
+            _ => {
+                let _ = std::fs::remove_file(&desktop);
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn apply_startup(&self) {
+        if test_folder().is_some() {
+            return;
+        }
+        let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
+        let dir = home.join("Library").join("LaunchAgents");
+        let plist = dir.join("com.youareincredible.procontrollerconnect.plist");
+        match std::env::current_exe() {
+            Ok(exe) if self.start_with_windows => {
+                let _ = std::fs::create_dir_all(&dir);
+                let arg = if self.start_minimized { "\n    <string>--minimized</string>" } else { "" };
+                let content = format!(
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                     <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+                     <plist version=\"1.0\">\n<dict>\n\
+                     \x20 <key>Label</key><string>com.youareincredible.procontrollerconnect</string>\n\
+                     \x20 <key>ProgramArguments</key>\n  <array>\n    <string>{}</string>{arg}\n  </array>\n\
+                     \x20 <key>RunAtLoad</key><true/>\n</dict>\n</plist>\n",
+                    exe.display()
+                );
+                let _ = std::fs::write(&plist, content);
+            }
+            _ => {
+                let _ = std::fs::remove_file(&plist);
+            }
+        }
+    }
 }
 
 /// Case-insensitive "contains" against each ';'-separated filter.
@@ -135,12 +214,36 @@ pub fn name_matches(filter: &str, device_name: &str) -> bool {
 }
 
 /// Local time as "yyyy-MM-dd HH:mm:ss" (full) or "HH:mm:ss".
+#[cfg(windows)]
 pub fn now_text(full: bool) -> String {
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     if full {
         format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond)
     } else {
         format!("{:02}:{:02}:{:02}", t.wHour, t.wMinute, t.wSecond)
+    }
+}
+
+#[cfg(unix)]
+pub fn now_text(full: bool) -> String {
+    unsafe {
+        let mut now: libc::time_t = 0;
+        libc::time(&mut now);
+        let mut tm: libc::tm = std::mem::zeroed();
+        libc::localtime_r(&now, &mut tm);
+        if full {
+            format!(
+                "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                tm.tm_year + 1900,
+                tm.tm_mon + 1,
+                tm.tm_mday,
+                tm.tm_hour,
+                tm.tm_min,
+                tm.tm_sec
+            )
+        } else {
+            format!("{:02}:{:02}:{:02}", tm.tm_hour, tm.tm_min, tm.tm_sec)
+        }
     }
 }
 

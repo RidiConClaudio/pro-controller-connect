@@ -18,13 +18,19 @@ use std::{
 };
 
 use serde_json::{json, Value};
+#[cfg(target_os = "linux")]
+use tao::platform::unix::WindowExtUnix;
+#[cfg(windows)]
+use tao::platform::windows::{IconExtWindows, WindowBuilderExtWindows, WindowExtWindows};
+#[cfg(windows)]
+use tao::window::Icon;
 use tao::{
     dpi::{LogicalSize, PhysicalPosition},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
-    platform::windows::{IconExtWindows, WindowBuilderExtWindows, WindowExtWindows},
-    window::{Icon, Theme, Window, WindowBuilder},
+    window::{Theme, Window, WindowBuilder},
 };
+#[cfg(windows)]
 use windows::{
     core::{w, HSTRING},
     Win32::{
@@ -37,7 +43,11 @@ use windows::{
         },
     },
 };
-use wry::{WebContext, WebView, WebViewBuilder, WebViewBuilderExtWindows};
+#[cfg(target_os = "linux")]
+use wry::WebViewBuilderExtUnix;
+#[cfg(windows)]
+use wry::WebViewBuilderExtWindows;
+use wry::{WebContext, WebView, WebViewBuilder};
 
 use crate::{
     input::Input,
@@ -63,6 +73,11 @@ enum UserEvent {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     std::panic::set_hook(Box::new(|info| settings::write_log_file(&format!("panic: {info}"))));
 
     // Single instance: if already running, bring it to the front.
@@ -76,25 +91,27 @@ fn main() {
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
-    listen_for_show(proxy.clone());
+    listen_for_show(&mutex, proxy.clone());
 
     let p = proxy.clone();
     let service = Service::new(settings.clone(), move |e| {
         let _ = p.send_event(UserEvent::Service(e));
     });
 
-    let window = WindowBuilder::new()
+    let wb = WindowBuilder::new()
         .with_title("Pro Controller Connect")
-        .with_window_icon(Icon::from_resource(1, None).ok())
         .with_decorations(false)
-        .with_undecorated_shadow(true)
         .with_resizable(false)
         .with_inner_size(LogicalSize::new(WIDTH, 640.0))
         .with_theme(Some(Theme::Dark))
         .with_background_color(BG)
-        .with_visible(false)
-        .build(&event_loop)
-        .expect("window");
+        .with_visible(false);
+    #[cfg(windows)]
+    let wb = wb
+        .with_window_icon(Icon::from_resource(1, None).ok())
+        .with_undecorated_shadow(true);
+    let window = wb.build(&event_loop).expect("window");
+    #[cfg(windows)]
     style_window(HWND(window.hwnd() as *mut _));
 
     let p = proxy.clone();
@@ -155,7 +172,7 @@ struct App {
     tray: Tray,
     input: Input,
     /// None once the app is exiting
-    mutex: Option<HANDLE>,
+    mutex: Option<SingleGuard>,
     status: Status,
     /// Activity shown in the window, kept while the window is closed
     log: VecDeque<String>,
@@ -205,17 +222,24 @@ impl App {
         }
     }
 
-    /// Back to the notification area: the page and its browser engine are released.
+    /// Back to the notification area (Windows) or minimized to Dock/Taskbar (Linux/macOS).
     fn hide(&mut self) {
-        self.window.set_visible(false);
-        self.webview = None;
-        self.want_input = false;
-        self.pending_show = false;
-        let mut s = self.settings.lock().unwrap();
-        if !s.hide_tip_shown {
-            self.tray.balloon("Pro Controller Connect", &t("hide_tip"));
-            s.hide_tip_shown = true;
-            s.save();
+        #[cfg(windows)]
+        {
+            self.window.set_visible(false);
+            self.webview = None;
+            self.want_input = false;
+            self.pending_show = false;
+            let mut s = self.settings.lock().unwrap();
+            if !s.hide_tip_shown {
+                self.tray.balloon("Pro Controller Connect", &t("hide_tip"));
+                s.hide_tip_shown = true;
+                s.save();
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            self.window.set_minimized(true);
         }
     }
 
@@ -223,16 +247,13 @@ impl App {
         self.service.stop();
         self.tray.remove();
         self.webview = None;
-        if let Some(m) = self.mutex.take() {
-            unsafe {
-                let _ = CloseHandle(m);
-            }
-        }
+        self.mutex = None;
     }
 
     fn create_webview(&mut self) -> wry::Result<WebView> {
         let s = self.settings.lock().unwrap().clone();
         let boot = json!({
+            "os": std::env::consts::OS,
             "loc": loc::page_table(),
             "langs": loc::LANGUAGES,
             "settings": settings_json(&s),
@@ -240,17 +261,22 @@ impl App {
         let boot = boot.to_string().replace("</", "<\\/");
         let html = PAGE.replace("/*BOOT*/", &format!("window.BOOT = {boot};"));
         let p = self.proxy.clone();
-        WebViewBuilder::new_with_web_context(&mut self.context)
+        let builder = WebViewBuilder::new_with_web_context(&mut self.context)
             .with_html(html)
             .with_background_color(BG)
             .with_devtools(cfg!(debug_assertions))
             .with_default_context_menus(false)
-            .with_browser_accelerator_keys(false)
             .with_ipc_handler(move |req| {
                 let _ = p.send_event(UserEvent::Ipc(req.body().clone()));
             })
-            .with_navigation_handler(|uri| uri.starts_with("about:") || uri.starts_with("data:"))
-            .build(&self.window)
+            .with_navigation_handler(|uri| uri.starts_with("about:") || uri.starts_with("data:"));
+        #[cfg(windows)]
+        let builder = builder.with_browser_accelerator_keys(false);
+        #[cfg(target_os = "linux")]
+        if let Some(vbox) = self.window.default_vbox() {
+            return builder.build_gtk(vbox);
+        }
+        builder.build(&self.window)
     }
 
     fn send(&self, msg: Value) {
@@ -287,6 +313,7 @@ impl App {
             }
             "min" => self.window.set_minimized(true),
             "close" => self.hide(),
+            "quit" => self.exit(),
             "main" => {
                 if self.service.flow_running() {
                     self.service.cancel_flow();
@@ -325,7 +352,7 @@ impl App {
                 self.restart();
             }
             "restartBt" => self.service.restart_bluetooth(),
-            "btSettings" => open("ms-settings:bluetooth"),
+            "btSettings" => open_bt_settings(),
             "input" => {
                 self.want_input = v["on"].as_bool().unwrap_or(false);
                 self.input.forget_last();
@@ -446,7 +473,20 @@ fn settings_json(s: &Settings) -> Value {
 }
 
 
-fn single_instance() -> Option<HANDLE> {
+#[cfg(windows)]
+struct SingleGuard(HANDLE);
+
+#[cfg(windows)]
+impl Drop for SingleGuard {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = CloseHandle(self.0);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn single_instance() -> Option<SingleGuard> {
     unsafe {
         let mutex = CreateMutexW(None, true, w!(r"Local\ProControllerConnect.Single")).ok()?;
         if GetLastError() == ERROR_ALREADY_EXISTS {
@@ -458,11 +498,12 @@ fn single_instance() -> Option<HANDLE> {
             let _ = CloseHandle(mutex);
             return None;
         }
-        Some(mutex)
+        Some(SingleGuard(mutex))
     }
 }
 
-fn listen_for_show(proxy: EventLoopProxy<UserEvent>) {
+#[cfg(windows)]
+fn listen_for_show(_guard: &SingleGuard, proxy: EventLoopProxy<UserEvent>) {
     let Ok(ev) = (unsafe { CreateEventW(None, false, false, w!(r"Local\ProControllerConnect.Show")) }) else { return };
     let raw = ev.0 as isize;
     std::thread::spawn(move || loop {
@@ -473,7 +514,50 @@ fn listen_for_show(proxy: EventLoopProxy<UserEvent>) {
     });
 }
 
+#[cfg(not(windows))]
+struct SingleGuard {
+    path: std::path::PathBuf,
+    listener: Option<std::os::unix::net::UnixListener>,
+}
+
+#[cfg(not(windows))]
+impl Drop for SingleGuard {
+    fn drop(&mut self) {
+        self.listener = None;
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+#[cfg(not(windows))]
+fn single_instance() -> Option<SingleGuard> {
+    use std::io::Write;
+    use std::os::unix::net::{UnixListener, UnixStream};
+    let dir = settings::folder();
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("single.sock");
+    if let Ok(mut stream) = UnixStream::connect(&path) {
+        let _ = stream.write_all(b"show\n");
+        return None;
+    }
+    let _ = std::fs::remove_file(&path);
+    let listener = UnixListener::bind(&path).ok();
+    Some(SingleGuard { path, listener })
+}
+
+#[cfg(not(windows))]
+fn listen_for_show(guard: &SingleGuard, proxy: EventLoopProxy<UserEvent>) {
+    let Some(listener) = guard.listener.as_ref().and_then(|l| l.try_clone().ok()) else { return };
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            if stream.is_ok() {
+                let _ = proxy.send_event(UserEvent::Show);
+            }
+        }
+    });
+}
+
 /// Windows 11 look: dark, rounded corners, no coloured border.
+#[cfg(windows)]
 fn style_window(hwnd: HWND) {
     let (dark, round, border): (i32, i32, u32) = (1, 2, 0xFFFF_FFFE);
     unsafe {
@@ -483,8 +567,35 @@ fn style_window(hwnd: HWND) {
     }
 }
 
-fn open(target: &str) {
+#[cfg(windows)]
+fn open_bt_settings() {
     unsafe {
-        ShellExecuteW(None, &HSTRING::from("open"), &HSTRING::from(target), None, None, SW_SHOWNORMAL);
+        ShellExecuteW(None, &HSTRING::from("open"), &HSTRING::from("ms-settings:bluetooth"), None, None, SW_SHOWNORMAL);
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn open_bt_settings() {
+    let _ = std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.BluetoothSettings")
+        .spawn();
+}
+
+#[cfg(target_os = "linux")]
+fn open_bt_settings() {
+    use std::process::Command;
+    for (cmd, args) in [
+        ("plasma-open-settings", &["kcm_bluetooth"][..]),
+        ("systemsettings", &["kcm_bluetooth"][..]),
+        ("kcmshell6", &["kcm_bluetooth"][..]),
+        ("blueman-manager", &[][..]),
+        ("overskride", &[][..]),
+        ("gnome-control-center", &["bluetooth"][..]),
+        ("kcmshell5", &["kcm_bluetooth"][..]),
+        ("xdg-open", &["settings://bluetooth"][..]),
+    ] {
+        if Command::new(cmd).args(args).spawn().is_ok() {
+            break;
+        }
     }
 }

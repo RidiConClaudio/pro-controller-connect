@@ -20,7 +20,7 @@ static CODE: OnceLock<String> = OnceLock::new();
 pub fn init(setting: &str) {
     let mut code = setting.to_ascii_lowercase();
     if code == "auto" || !tables().contains_key(&code) {
-        code = windows_ui_language();
+        code = os_ui_language();
     }
     if !tables().contains_key(&code) {
         code = "en".into();
@@ -33,12 +33,22 @@ fn code() -> &'static str {
 }
 
 pub fn t(key: &str) -> String {
-    tables()
+    let raw = tables()
         .get(code())
         .and_then(|t| t.get(key))
         .or_else(|| tables()["en"].get(key))
         .cloned()
-        .unwrap_or_else(|| key.to_string())
+        .unwrap_or_else(|| key.to_string());
+    adapt_os_label(raw)
+}
+
+fn adapt_os_label(s: String) -> String {
+    #[cfg(target_os = "macos")]
+    return s.replace("Windows", "macOS");
+    #[cfg(target_os = "linux")]
+    return s.replace("Windows", "Linux");
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    return s;
 }
 
 /// Like `string.Format`: replaces {0}, {1}… with the arguments.
@@ -56,11 +66,15 @@ pub fn page_table() -> serde_json::Value {
     if let Some(cur) = tables().get(code()) {
         merged.extend(cur.iter().map(|(k, v)| (k.clone(), v.clone())));
     }
+    for v in merged.values_mut() {
+        *v = adapt_os_label(std::mem::take(v));
+    }
     serde_json::to_value(merged).unwrap_or_default()
 }
 
-/// Two-letter code of the Windows display language (like CultureInfo.CurrentUICulture).
-fn windows_ui_language() -> String {
+/// Two-letter code of the OS display language.
+#[cfg(windows)]
+fn os_ui_language() -> String {
     use windows::Win32::Globalization::{GetUserDefaultUILanguage, LCIDToLocaleName};
     let mut buf = [0u16; 85];
     let n = unsafe { LCIDToLocaleName(GetUserDefaultUILanguage() as u32, Some(&mut buf), 0) };
@@ -69,4 +83,25 @@ fn windows_ui_language() -> String {
     }
     let name = String::from_utf16_lossy(&buf[..(n - 1) as usize]);
     name.split('-').next().unwrap_or("").to_ascii_lowercase()
+}
+
+#[cfg(not(windows))]
+fn os_ui_language() -> String {
+    for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(val) = std::env::var(var) {
+            let clean = val.split('.').next().unwrap_or("").split(['_', '-']).next().unwrap_or("").trim();
+            if clean.len() == 2 && !clean.eq_ignore_ascii_case("c") {
+                return clean.to_ascii_lowercase();
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    if let Ok(out) = std::process::Command::new("defaults").args(["read", "-g", "AppleLocale"]).output() {
+        let s = String::from_utf8_lossy(&out.stdout);
+        let code = s.trim().split(['_', '-']).next().unwrap_or("");
+        if code.len() == 2 {
+            return code.to_ascii_lowercase();
+        }
+    }
+    String::new()
 }

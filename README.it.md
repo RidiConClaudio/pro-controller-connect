@@ -2,7 +2,7 @@
 
 [English](README.md) · **Italiano**
 
-App per Windows che riconnette automaticamente il Pro Controller al Bluetooth del PC,
+App per **Windows, Linux e macOS** che riconnette automaticamente il Pro Controller al Bluetooth del computer,
 senza dover rimuovere a mano il dispositivo dalle impostazioni ogni volta.
 
 <p align="center">
@@ -37,14 +37,13 @@ Inoltre:
 
 ## Download
 
-Scarica `ProControllerConnect.exe` dalla pagina [Releases](../../releases), oppure compilalo
-(vedi sotto).
+Scarica la versione per il tuo sistema dalla pagina [Releases](../../releases), oppure compilala (vedi sotto):
 
-Requisiti: Windows 10 (versione 2004) o Windows 11. Non serve installare altro: è un unico file
-portatile di circa 1 MB (la finestra usa Microsoft Edge WebView2, già incluso in Windows 11).
+- **Windows**: `ProControllerConnect.exe` (Windows 10 versione 2004 o Windows 11, singolo file portatile da ~1 MB con Edge WebView2).
+- **Linux**: `ProControllerConnect-linux-x86_64.tar.gz` (usa BlueZ `bluetoothctl`, GTK3 + WebKit2GTK 4.1 e `/dev/input/js*`).
+- **macOS**: `ProControllerConnect-macos-universal.zip` (`Pro Controller Connect.app`, binario universale per Apple Silicon e Intel, usa `IOBluetooth` / `blueutil` e WKWebView).
 
-L'eseguibile non è firmato digitalmente: al primo avvio Windows SmartScreen potrebbe mostrare
-un avviso (Ulteriori informazioni › Esegui comunque).
+Gli eseguibili non sono firmati digitalmente: su Windows SmartScreen scegli *Ulteriori informazioni › Esegui comunque*; su macOS fai clic destro su `Pro Controller Connect.app` › *Apri* (oppure `xattr -cr "Pro Controller Connect.app"`).
 
 ## Uso
 
@@ -53,7 +52,11 @@ un avviso (Ulteriori informazioni › Esegui comunque).
 - Chiudere la finestra la nasconde soltanto. Per uscire: clic destro sull'icona nell'area di notifica › **Esci**.
 - Il test dei tasti funziona quando la finestra è in primo piano (limite di Windows).
 
-Impostazioni e log sono in `%LOCALAPPDATA%\you_are_incredible\ProControllerConnect\` (`settings.json`, `log.txt`, `WebView2\`).
+Impostazioni e log sono in:
+- **Windows**: `%LOCALAPPDATA%\you_are_incredible\ProControllerConnect\`
+- **Linux**: `~/.config/you_are_incredible/ProControllerConnect/`
+- **macOS**: `~/Library/Application Support/you_are_incredible/ProControllerConnect/`
+
 In `settings.json` puoi cambiare:
 
 | Chiave | Default | Significato |
@@ -64,13 +67,19 @@ In `settings.json` puoi cambiare:
 
 ## Compilazione
 
-Serve [Rust](https://rustup.rs/) (toolchain MSVC).
+Serve [Rust](https://rustup.rs/).
+- **Windows**: toolchain MSVC.
+- **Linux** (richiede `webkit2gtk-4.1` e `bluez-utils` / `bluetoothctl`):
+  - **CachyOS / Arch Linux**: `sudo pacman -S webkit2gtk-4.1 gtk3 bluez-utils`
+  - **Ubuntu / Debian / Mint**: `sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev bluez build-essential pkg-config`
+  - **Fedora / Bazzite**: `sudo dnf install gtk3-devel webkit2gtk4.1-devel bluez`
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`).
 
 ```bash
 cargo build --release
 ```
 
-Il risultato è `target/release/ProControllerConnect.exe`. L'icona si rigenera con `tools/make-icon.ps1`.
+Il risultato è `target/release/ProControllerConnect` (`.exe` su Windows). L'icona Windows si rigenera con `tools/make-icon.ps1`.
 
 ## Traduzioni
 

@@ -8,9 +8,9 @@
   --bg: #0E1014; --card: #161920; --card-hover: #1D212B; --line: #252A35;
   --text: #ECEEF2; --sub: #8B93A3; --accent: #5B8CFF; --track-off: #2D3340;
   --grad: linear-gradient(135deg, #6E9BFF, #7B5CFF);
-  --icon: "Segoe Fluent Icons", "Segoe MDL2 Assets";
-  --ui: "Segoe UI Variable Display", "Segoe UI", sans-serif;
-  --mono: "Cascadia Mono", Consolas, monospace;
+  --icon: "Segoe Fluent Icons", "Segoe MDL2 Assets", system-ui, sans-serif;
+  --ui: "Segoe UI Variable Display", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -211,16 +211,32 @@ const $ = id => document.getElementById(id);
 const SVG = 'http://www.w3.org/2000/svg';
 
 const GREEN = '#34C76F', ACCENT = '#5B8CFF', AMBER = '#FFB020', RED = '#FF5A5F', GRAY = '#8B93A3';
-const G = { ctrl: '', check: '', search: '', sync: '', warn: '', bt: '',
-            x: '', refresh: '' };
+const isWin = !B.os || B.os === 'windows';
+const G = isWin
+  ? { ctrl: '\uE7FC', check: '\uE73E', search: '\uE721', sync: '\uE895', warn: '\uE7BA', bt: '\uE702', x: '\uE711', refresh: '\uE72C', gear: '\uE713', log: '\uE81C', min: '\uE921', close: '\uE8BB' }
+  : { ctrl: '🎮', check: '✓', search: '⌕', sync: '↻', warn: '!', bt: 'ᛒ', x: '✕', refresh: '↻', gear: '⚙', log: '☰', min: '−', close: '✕' };
+
+if (!isWin) {
+  document.querySelector('#titlebar .logo').textContent = G.ctrl;
+  $('min').textContent = G.min;
+  $('close').textContent = G.close;
+  $('close').dataset.tip = 'tray_exit';
+  $('glyph').textContent = G.ctrl;
+  $('mainglyph').textContent = G.bt;
+  document.querySelector('#tab-ctrl .ic').textContent = G.ctrl;
+  document.querySelector('#tab-set .ic').textContent = G.gear;
+  document.querySelector('#restartbt .ic').textContent = G.refresh;
+  document.querySelector('#btsettings .ic').textContent = G.gear;
+  document.querySelector('#logbtn .ic').textContent = G.log;
+}
 
 document.querySelectorAll('[data-l]').forEach(e => e.textContent = T(e.dataset.l));
 document.querySelectorAll('[data-tip]').forEach(e => e.title = T(e.dataset.tip));
 
-// ── Window: drag, minimize, hide, height follows the content
+// ── Window: drag, minimize, hide (Windows) or quit (Linux/macOS), height follows the content
 $('titlebar').addEventListener('mousedown', e => { if (e.button === 0 && !e.target.closest('button')) send({ t: 'drag' }); });
 $('min').onclick = () => send({ t: 'min' });
-$('close').onclick = () => send({ t: 'close' });
+$('close').onclick = () => send({ t: isWin ? 'close' : 'quit' });
 let lastH = 0;
 new ResizeObserver(() => {
   const h = Math.ceil($('root').getBoundingClientRect().height);
@@ -337,6 +353,22 @@ const fmt = (v, already) => { let x = already ? v : v * 2 - 1; if (Math.abs(x) <
 const ago = s => s < 60 ? `${s | 0} s` : s < 3600 ? `${(s / 60) | 0} min` : `${(s / 3600) | 0} h`;
 setInterval(() => {
   if ($('tester').hidden) return;
+  if (!isWin && navigator.getGamepads) {
+    const gp = Array.from(navigator.getGamepads() || []).find(g => g && g.connected);
+    if (gp) {
+      if (!device.present) {
+        device = { text: gp.id || 'Pro Controller', present: true };
+        $('devinfo').textContent = T('device_detected', device.text);
+      }
+      const p = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+      // Standard W3C Gamepad mapping -> Pro Controller indices
+      const b = [p(0), p(1), p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(16), p(17)];
+      const up = p(12), down = p(13), left = p(14), right = p(15);
+      const h = up && right ? 2 : up && left ? 8 : down && right ? 4 : down && left ? 6 : up ? 1 : right ? 3 : down ? 5 : left ? 7 : 0;
+      const a = [(gp.axes[0] || 0) * 0.5 + 0.5, (gp.axes[1] || 0) * 0.5 + 0.5, (gp.axes[2] || 0) * 0.5 + 0.5, (gp.axes[3] || 0) * 0.5 + 0.5];
+      onInput({ b, h, a });
+    }
+  }
   const a = latest && latest.a;
   if (a && a.length >= 4) $('axes').textContent = `L ${fmt(a[0])} ${fmt(-(a[1] * 2 - 1), true)}   R ${fmt(a[2])} ${fmt(-(a[3] * 2 - 1), true)}`;
   if (verified) { const s = (performance.now() - lastInput) / 1000; $('lastinput').textContent = s < 1.5 ? T('last_input_now') : T('last_input_ago', ago(s)); }
